@@ -103,18 +103,24 @@ impl <'a> Config<'a> {
         }
     }
 
+    fn query_unsigned_integer(&self, attribute: ConfigAttribute) -> Result<UnsignedInteger, ConfigError> {
+        let value = self.query_attrib(attribute)?;
+        Ok(UnsignedInteger::try_convert(value)?)
+    }
+
+    fn query_positive_integer(&self, attribute: ConfigAttribute) -> Result<PositiveInteger, ConfigError> {
+        let value = self.query_attrib(attribute)?;
+        Ok(PositiveInteger::try_convert(value)?)
+    }
+
     pub fn color_buffer(&self) -> Result<ColorBuffer, ConfigError> {
         let color_buffer_type = self.query_attrib(ConfigAttribute::ColorBufferType)?;
 
         match color_buffer_type as EGLenum {
             ffi::RGB_BUFFER => {
-                let r = self.query_attrib(ConfigAttribute::RedSize)?;
-                let g = self.query_attrib(ConfigAttribute::GreenSize)?;
-                let b = self.query_attrib(ConfigAttribute::BlueSize)?;
-
-                let r = PositiveInteger::try_convert(r)?;
-                let g = PositiveInteger::try_convert(g)?;
-                let b = PositiveInteger::try_convert(b)?;
+                let r = self.query_positive_integer(ConfigAttribute::RedSize)?;
+                let g = self.query_positive_integer(ConfigAttribute::GreenSize)?;
+                let b = self.query_positive_integer(ConfigAttribute::BlueSize)?;
 
                 let a = self.query_attrib(ConfigAttribute::AlphaSize)?;
 
@@ -127,8 +133,7 @@ impl <'a> Config<'a> {
                 }
             },
             ffi::LUMINANCE_BUFFER => {
-                let l = self.query_attrib(ConfigAttribute::LuminanceSize)?;
-                let l = PositiveInteger::try_convert(l)?;
+                let l = self.query_positive_integer(ConfigAttribute::LuminanceSize)?;
 
                 let a = self.query_attrib(ConfigAttribute::AlphaSize)?;
 
@@ -234,13 +239,9 @@ impl <'a> Config<'a> {
 
         match transparent_type as EGLenum {
             ffi::TRANSPARENT_RGB => {
-                let r = self.query_attrib(ConfigAttribute::TransparenRedValue)?;
-                let g = self.query_attrib(ConfigAttribute::TransparentGreenValue)?;
-                let b = self.query_attrib(ConfigAttribute::TransparentBlueValue)?;
-
-                let r = UnsignedInteger::try_convert(r)?;
-                let g = UnsignedInteger::try_convert(g)?;
-                let b = UnsignedInteger::try_convert(b)?;
+                let r = self.query_unsigned_integer(ConfigAttribute::TransparenRedValue)?;
+                let g = self.query_unsigned_integer(ConfigAttribute::TransparentGreenValue)?;
+                let b = self.query_unsigned_integer(ConfigAttribute::TransparentBlueValue)?;
 
                 // TODO: check other end of the value range
 
@@ -252,34 +253,22 @@ impl <'a> Config<'a> {
     }
 
     pub fn max_pbuffer_width_height(&self) -> Result<(UnsignedInteger, UnsignedInteger), ConfigError> {
-        let width = self.query_attrib(ConfigAttribute::MaxPbufferWidth)?;
-        let height = self.query_attrib(ConfigAttribute::MaxPbufferHeight)?;
-
-        let width = UnsignedInteger::try_convert(width)?;
-        let height = UnsignedInteger::try_convert(height)?;
+        let width = self.query_unsigned_integer(ConfigAttribute::MaxPbufferWidth)?;
+        let height = self.query_unsigned_integer(ConfigAttribute::MaxPbufferHeight)?;
 
         Ok((width, height))
     }
 
     pub fn max_pbuffer_pixels(&self) -> Result<UnsignedInteger, ConfigError> {
-        let pixels = self.query_attrib(ConfigAttribute::MaxPbufferPixels)?;
-        let pixels = UnsignedInteger::try_convert(pixels)?;
-
-        Ok(pixels)
+        self.query_unsigned_integer(ConfigAttribute::MaxPbufferPixels)
     }
 
     pub fn max_swap_interval(&self) -> Result<UnsignedInteger, ConfigError> {
-        let value = self.query_attrib(ConfigAttribute::MaxSwapInterval)?;
-        let value = UnsignedInteger::try_convert(value)?;
-
-        Ok(value)
+        self.query_unsigned_integer(ConfigAttribute::MaxSwapInterval)
     }
 
     pub fn min_swap_interval(&self) -> Result<UnsignedInteger, ConfigError> {
-        let value = self.query_attrib(ConfigAttribute::MinSwapInterval)?;
-        let value = UnsignedInteger::try_convert(value)?;
-
-        Ok(value)
+        self.query_unsigned_integer(ConfigAttribute::MinSwapInterval)
     }
 
     pub fn all(&self) -> Result<ConfigInfo, ConfigError> {
