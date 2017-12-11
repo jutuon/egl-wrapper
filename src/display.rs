@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
-use config::Configs;
+use config::{Configs, ConfigSearchOptionsBuilder, ConfigSearchOptions};
 
 #[derive(Debug)]
 pub enum DisplayCreationError {
@@ -179,6 +179,56 @@ impl EGLDisplay {
         } else {
             return 0;
         }
+    }
+
+    pub fn config_search_options_builder(&self) -> ConfigSearchOptionsBuilder {
+        ConfigSearchOptionsBuilder::new(self.egl_version)
+    }
+
+    pub fn config_search<'a>(&'a self, options: ConfigSearchOptions) -> Result<Configs<'a>, ()> {
+        let mut count = 0;
+
+        unsafe {
+            let result = ffi::ChooseConfig(self.display, options.attribute_list().ptr(), ptr::null_mut(), 0, &mut count);
+
+            if result == ffi::FALSE {
+                return Err(());
+            }
+        }
+
+        if count < 0 {
+            return Err(());
+        } else if count == 0 {
+            return Ok(Configs::new(self, Vec::new()));
+        }
+
+        let mut vec: Vec<ffi::types::EGLConfig> = Vec::with_capacity(count as usize);
+
+        let mut new_count = 0;
+
+        unsafe {
+            let result = ffi::ChooseConfig(
+                self.display,
+                options.attribute_list().ptr(),
+                vec.as_mut_slice().as_mut_ptr(),
+                count,
+                &mut new_count
+            );
+
+            if result == ffi::FALSE {
+                return Err(());
+            }
+        }
+
+        if count != new_count {
+            return Err(());
+        }
+
+        unsafe {
+            vec.set_len(new_count as usize);
+        }
+
+        Ok(Configs::new(self, vec))
     }
 }
 

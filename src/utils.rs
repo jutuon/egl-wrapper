@@ -1,5 +1,6 @@
 
 use egl_sys::ffi::types::EGLint;
+use egl_sys::ffi;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PositiveInteger(EGLint);
@@ -63,3 +64,32 @@ impl UnsignedInteger {
 }
 
 // TODO: tests for UnsignedInteger
+
+
+
+pub(crate) struct AttributeListBuilder(Vec<EGLint>);
+
+impl AttributeListBuilder {
+    pub fn new() -> AttributeListBuilder {
+        AttributeListBuilder(Vec::new())
+    }
+
+    pub fn add(&mut self, attribute: EGLint, value: EGLint) {
+        self.0.push(attribute);
+        self.0.push(value);
+    }
+
+    pub fn build(mut self) -> AttributeList {
+        self.0.push(ffi::NONE as EGLint);
+        AttributeList(self.0)
+    }
+}
+
+
+pub(crate) struct AttributeList(Vec<EGLint>);
+
+impl AttributeList {
+    pub fn ptr(&self) -> *const EGLint {
+        self.0.as_slice().as_ptr()
+    }
+}

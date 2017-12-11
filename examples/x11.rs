@@ -51,6 +51,7 @@ fn default() {
         let mut display = egl_wrapper::display::EGLDisplay::default_display().expect("error");
 
 
+        // Test querying version information
 
         println!("egl: version {:?}", display.version());
 
@@ -67,6 +68,8 @@ fn default() {
                 println!("{}", ext);
             }
         }
+
+        // Test querying all configs
 
         {
             let configs = display.configs().unwrap();
@@ -85,6 +88,51 @@ fn default() {
             }
         }
 
+        // Test searching configs
+
+        {
+            use egl_wrapper::display::EGLVersion;
+            use egl_wrapper::config::{
+                UnsignedIntegerSearchAttributes,
+                SurfaceType,
+                RenderableType,
+                EGL14ConfigClientAPI,
+                EGL15ConfigClientAPI,
+                ClientApiConformance,
+            };
+            use egl_wrapper::utils::UnsignedInteger;
+
+            let mut options = display.config_search_options_builder();
+
+            options.add_unsigned_integer_attribute(
+                UnsignedIntegerSearchAttributes::AlphaSize,
+                Some(UnsignedInteger::new(8))
+            );
+
+            let renderable_type = match display.version() {
+                EGLVersion::EGL_1_4 => RenderableType::EGL14(EGL14ConfigClientAPI::OPENGL),
+                EGLVersion::EGL_1_5 => RenderableType::EGL15(EGL15ConfigClientAPI::OPENGL),
+            };
+
+            let client_api_conformance = match display.version() {
+                EGLVersion::EGL_1_4 => ClientApiConformance::EGL14(EGL14ConfigClientAPI::OPENGL),
+                EGLVersion::EGL_1_5 => ClientApiConformance::EGL15(EGL15ConfigClientAPI::OPENGL),
+            };
+
+            options.client_api_conformance(client_api_conformance).unwrap();
+            options.renderable_type(renderable_type).unwrap();
+            options.surface_type(SurfaceType::WINDOW);
+
+            let configs = display.config_search(options.build()).unwrap();
+
+            println!("config search results count: {}", configs.count());
+
+            for config in configs.iter() {
+                config.all().unwrap();
+            }
+        }
+
+        println!();
 
         thread::sleep(Duration::from_secs(2));
     }
