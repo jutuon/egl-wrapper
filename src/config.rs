@@ -172,10 +172,10 @@ impl <'a> Config<'a> {
 
         match self.display.version() {
             EGLVersion::EGL_1_4 => {
-                Ok(RenderableType::EGL14(EGL14RenderableType::from_bits_truncate(value as EGLenum)))
+                Ok(RenderableType::EGL14(EGL14ConfigClientAPI::from_bits_truncate(value as EGLenum)))
             },
             EGLVersion::EGL_1_5 => {
-                Ok(RenderableType::EGL15(EGL15RenderableType::from_bits_truncate(value as EGLenum)))
+                Ok(RenderableType::EGL15(EGL15ConfigClientAPI::from_bits_truncate(value as EGLenum)))
             },
         }
     }
@@ -216,10 +216,10 @@ impl <'a> Config<'a> {
 
         match self.display.version() {
             EGLVersion::EGL_1_4 => {
-                Ok(ClientApiConformance::EGL14(EGL14RenderableType::from_bits_truncate(value as EGLenum)))
+                Ok(ClientApiConformance::EGL14(EGL14ConfigClientAPI::from_bits_truncate(value as EGLenum)))
             },
             EGLVersion::EGL_1_5 => {
-                Ok(ClientApiConformance::EGL15(EGL15RenderableType::from_bits_truncate(value as EGLenum)))
+                Ok(ClientApiConformance::EGL15(EGL15ConfigClientAPI::from_bits_truncate(value as EGLenum)))
             },
         }
     }
@@ -393,12 +393,12 @@ bitflags! {
 
 #[derive(Debug)]
 pub enum RenderableType {
-    EGL14(EGL14RenderableType),
-    EGL15(EGL15RenderableType),
+    EGL14(EGL14ConfigClientAPI),
+    EGL15(EGL15ConfigClientAPI),
 }
 
 bitflags! {
-    pub struct EGL14RenderableType: EGLenum {
+    pub struct EGL14ConfigClientAPI: EGLenum {
         const OPENGL     = ffi::OPENGL_BIT;
         const OPENGL_ES  = ffi::OPENGL_ES_BIT;
         const OPENGL_ES2 = ffi::OPENGL_ES2_BIT;
@@ -407,7 +407,7 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct EGL15RenderableType: EGLenum {
+    pub struct EGL15ConfigClientAPI: EGLenum {
         const OPENGL     = ffi::OPENGL_BIT;
         const OPENGL_ES  = ffi::OPENGL_ES_BIT;
         const OPENGL_ES2 = ffi::OPENGL_ES2_BIT;
@@ -418,6 +418,6 @@ bitflags! {
 
 #[derive(Debug)]
 pub enum ClientApiConformance {
-    EGL14(EGL14RenderableType),
-    EGL15(EGL15RenderableType),
+    EGL14(EGL14ConfigClientAPI),
+    EGL15(EGL15ConfigClientAPI),
 }
