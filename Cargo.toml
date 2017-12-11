@@ -1,0 +1,18 @@
+[package]
+name = "egl-wrapper"
+version = "0.1.0"
+authors = ["Juuso Tuononen <jutuon@outlook.com>"]
+
+
+[dependencies]
+bitflags = "1.0"
+
+[target.'cfg(unix)'.dependencies]
+x11 = "2.17"
+
+
+[dependencies.egl-sys]
+path = "../egl-sys"
+features = ["racer_autocomplete_workaround", "extensions_module"]
+#git = "https://github.com/jutuon/egl-sys"
+
