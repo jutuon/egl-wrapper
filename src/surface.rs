@@ -17,8 +17,8 @@ pub struct WindowSurface<'a> {
 }
 
 
-impl <'a> WindowSurface<'a> {
-    pub fn raw(&self) -> ffi::types::EGLSurface {
+impl <'a> Surface for WindowSurface<'a> {
+    fn raw(&self) -> ffi::types::EGLSurface {
         self.raw_surface
     }
 }
@@ -73,3 +73,8 @@ impl <'a> WindowSurfaceBuilder<'a> {
     }
 }
 
+
+
+pub trait Surface {
+    fn raw(&self) -> ffi::types::EGLSurface;
+}

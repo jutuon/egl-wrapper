@@ -34,7 +34,7 @@ fn x11() {
         }
 
 
-        let display = egl_wrapper::display::EGLDisplay::from_native_display_type(display_ptr).expect("error");
+        let mut display = egl_wrapper::display::EGLDisplay::from_native_display_type(display_ptr).expect("error");
 
         println!("egl: version {:?}", display.version());
 
@@ -84,10 +84,14 @@ fn x11() {
             }
         }
 
-        let configs = search_configs(&display);
-        let config = configs.iter().next().unwrap();
+        let config = {
+            let configs = search_configs(&display);
+            configs.into_iter().next().unwrap()
+        };
 
-        let egl_window_surface = display.window_surface_builder(config).build(window).unwrap();
+        let egl_window_surface = display.window_surface_builder(config.clone()).build(window).unwrap();
+
+        let context = display.opengl_context(&config).unwrap();
 
         thread::sleep(Duration::from_secs(2));
 
@@ -166,38 +170,38 @@ fn default() {
 
 fn search_configs<'a>(display: &'a EGLDisplay) -> Configs<'a> {
     use egl_wrapper::display::EGLVersion;
-            use egl_wrapper::config::{
-                UnsignedIntegerSearchAttributes,
-                SurfaceType,
-                RenderableType,
-                EGL14ConfigClientAPI,
-                EGL15ConfigClientAPI,
-                ClientApiConformance,
-            };
-            use egl_wrapper::utils::UnsignedInteger;
+    use egl_wrapper::config::{
+        UnsignedIntegerSearchAttributes,
+        SurfaceType,
+        RenderableType,
+        EGL14ConfigClientAPI,
+        EGL15ConfigClientAPI,
+        ClientApiConformance,
+    };
+    use egl_wrapper::utils::UnsignedInteger;
 
-            let mut options = display.config_search_options_builder();
+    let mut options = display.config_search_options_builder();
 
-            options.add_unsigned_integer_attribute(
-                UnsignedIntegerSearchAttributes::AlphaSize,
-                Some(UnsignedInteger::new(8))
-            );
+    options.add_unsigned_integer_attribute(
+        UnsignedIntegerSearchAttributes::AlphaSize,
+        Some(UnsignedInteger::new(8))
+    );
 
-            let renderable_type = match display.version() {
-                EGLVersion::EGL_1_4 => RenderableType::EGL14(EGL14ConfigClientAPI::OPENGL),
-                EGLVersion::EGL_1_5 => RenderableType::EGL15(EGL15ConfigClientAPI::OPENGL),
-            };
+    let renderable_type = match display.version() {
+        EGLVersion::EGL_1_4 => RenderableType::EGL14(EGL14ConfigClientAPI::OPENGL),
+        EGLVersion::EGL_1_5 => RenderableType::EGL15(EGL15ConfigClientAPI::OPENGL),
+    };
 
-            let client_api_conformance = match display.version() {
-                EGLVersion::EGL_1_4 => ClientApiConformance::EGL14(EGL14ConfigClientAPI::OPENGL),
-                EGLVersion::EGL_1_5 => ClientApiConformance::EGL15(EGL15ConfigClientAPI::OPENGL),
-            };
+    let client_api_conformance = match display.version() {
+        EGLVersion::EGL_1_4 => ClientApiConformance::EGL14(EGL14ConfigClientAPI::OPENGL),
+        EGLVersion::EGL_1_5 => ClientApiConformance::EGL15(EGL15ConfigClientAPI::OPENGL),
+    };
 
-            options.client_api_conformance(client_api_conformance).unwrap();
-            options.renderable_type(renderable_type).unwrap();
-            options.surface_type(SurfaceType::WINDOW);
+    options.client_api_conformance(client_api_conformance).unwrap();
+    options.renderable_type(renderable_type).unwrap();
+    options.surface_type(SurfaceType::WINDOW);
 
-            let configs = display.config_search(options.build()).unwrap();
+    let configs = display.config_search(options.build()).unwrap();
 
-            configs
+    configs
 }

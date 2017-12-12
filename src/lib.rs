@@ -12,3 +12,4 @@ pub mod config;
 mod error;
 pub mod display;
 pub mod surface;
+pub mod context;

@@ -1,6 +1,6 @@
 
 use std::slice;
-
+use std::vec;
 
 use egl_sys::{ extensions, ffi };
 use egl_sys::ffi::types::{ EGLint, EGLenum, EGLBoolean };
@@ -40,6 +40,10 @@ impl <'a> Configs<'a> {
     pub fn iter(&'a self) -> Iter<'a> {
         Iter::new(self.display, self.raw_configs.iter())
     }
+
+    pub fn into_iter(self) -> IntoIter<'a> {
+        IntoIter::new(self.display, self.raw_configs.into_iter())
+    }
 }
 
 pub struct Iter<'a> {
@@ -69,7 +73,35 @@ impl <'a> Iterator for Iter<'a> {
     }
 }
 
+pub struct IntoIter<'a> {
+    display: &'a EGLDisplay,
+    raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>,
+}
 
+impl <'a> IntoIter<'a> {
+    fn new(display: &'a EGLDisplay, raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>) -> IntoIter<'a> {
+        IntoIter {
+            display,
+            raw_configs_iter,
+        }
+    }
+}
+
+impl <'a> Iterator for IntoIter<'a> {
+    type Item = Config<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.raw_configs_iter.next().map(|raw_config| {
+            Config {
+                display: self.display,
+                raw_config,
+            }
+        })
+    }
+}
+
+
+#[derive(Clone)]
 pub struct Config<'a> {
     display: &'a EGLDisplay,
     raw_config: ffi::types::EGLConfig,

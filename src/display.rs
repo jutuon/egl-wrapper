@@ -10,6 +10,9 @@ use egl_sys::ffi::types::EGLint;
 
 use config::{Configs, ConfigSearchOptionsBuilder, ConfigSearchOptions, Config};
 use surface::{WindowSurfaceBuilder};
+use context::gl::OpenGLContext;
+use context::SingleContext;
+use error::EGLError;
 
 #[derive(Debug)]
 pub enum DisplayCreationError {
@@ -46,7 +49,8 @@ impl EGLVersion {
 pub struct EGLDisplay {
     egl_version: EGLVersion,
     display: ffi::types::EGLDisplay,
-    _marker: PhantomData<ffi::types::EGLDisplay>
+    _marker: PhantomData<ffi::types::EGLDisplay>,
+    context_created: bool,
 }
 
 
@@ -78,14 +82,16 @@ impl EGLDisplay {
                 Ok(EGLDisplay {
                     egl_version: version,
                     display,
-                    _marker: PhantomData
+                    _marker: PhantomData,
+                    context_created: false,
                 })
             },
             None => {
                 let display = EGLDisplay {
                     egl_version: EGLVersion::EGL_1_4,
                     display,
-                    _marker: PhantomData
+                    _marker: PhantomData,
+                    context_created: false,
                 };
 
                 drop(display);
@@ -234,6 +240,23 @@ impl EGLDisplay {
 
     pub fn window_surface_builder<'a>(&'a self, config: Config<'a>) -> WindowSurfaceBuilder<'a> {
         WindowSurfaceBuilder::new(config)
+    }
+
+    pub fn opengl_context<'a>(&'a self, config: &'a Config<'a>) -> Option<Result<SingleContext<'a, OpenGLContext<'a>>, Option<EGLError>>> {
+        match self.context_created {
+            true => None,
+            false => {
+                let context = SingleContext::create(config);
+
+                if context.is_err() {
+                    Some(context)
+                } else {
+                    //self.context_created = true;
+                    Some(context)
+                }
+            }
+        }
+
     }
 }
 
