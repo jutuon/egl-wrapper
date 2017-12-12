@@ -76,6 +76,14 @@ pub struct Config<'a> {
 }
 
 impl <'a> Config<'a> {
+    pub fn raw(&self) -> ffi::types::EGLConfig {
+        self.raw_config
+    }
+
+    pub fn display(&self) -> &EGLDisplay {
+        self.display
+    }
+
     fn query_attrib(&self, attribute: ConfigAttribute) -> Result<EGLint, ConfigError> {
         let attribute = attribute as EGLint;
 

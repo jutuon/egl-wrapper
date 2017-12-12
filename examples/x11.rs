@@ -8,21 +8,25 @@ use x11::xlib;
 use std::ptr::null;
 use std::thread;
 use std::time::Duration;
+use std::mem;
 
-//#[link(name="X11")]
-//extern {}
+use egl_wrapper::config::Configs;
+use egl_wrapper::display::EGLDisplay;
+
+#[link(name="X11")]
+extern {}
 
 fn main() {
     println!("{}", "Hello world");
 
     default();
-
+    x11();
 }
 
 fn x11() {
     unsafe {
 
-        let display_ptr = x11::xlib::XOpenDisplay(null());
+        let display_ptr = xlib::XOpenDisplay(null());
 
         if display_ptr.is_null() {
             println!("x11 display creation error");
@@ -34,10 +38,64 @@ fn x11() {
 
         println!("egl: version {:?}", display.version());
 
+        let mut window_attributes = xlib::XSetWindowAttributes {
+            background_pixmap: 0,
+            background_pixel: 0,
+            border_pixmap: 0,
+            border_pixel: 0,
+            bit_gravity: 0,
+            win_gravity: 0,
+            backing_store: 0,
+            backing_planes: 0,
+            backing_pixel: 0,
+            save_under: 0,
+            event_mask: 0,
+            do_not_propagate_mask: 0,
+            override_redirect: 0,
+            colormap: 0,
+            cursor: 0,
+        };
+
+        let window = xlib::XCreateWindow(
+            display_ptr,
+            xlib::XDefaultRootWindow(display_ptr),
+            0,
+            0,
+            640,
+            480,
+            0,
+            xlib::CopyFromParent,
+            xlib::CopyFromParent as u32,
+            xlib::CopyFromParent as *mut xlib::Visual,
+            0,
+            &mut window_attributes
+        );
+
+        xlib::XSelectInput(display_ptr, window, xlib::StructureNotifyMask);
+
+        xlib::XMapWindow(display_ptr, window);
+
+        let mut event: xlib::XEvent = mem::zeroed();
+
+        while true {
+            xlib::XNextEvent(display_ptr, &mut event);
+            if event.type_ == xlib::MapNotify {
+                break;
+            }
+        }
+
+        let configs = search_configs(&display);
+        let config = configs.iter().next().unwrap();
+
+        let egl_window_surface = display.window_surface_builder(config).build(window).unwrap();
+
         thread::sleep(Duration::from_secs(2));
 
 
-        let result = x11::xlib::XCloseDisplay(display_ptr);
+        xlib::XDestroyWindow(display_ptr, window);
+
+
+        let result = xlib::XCloseDisplay(display_ptr);
 
         if result != 0 {
             println!("x11 display close error");
@@ -91,7 +149,23 @@ fn default() {
         // Test searching configs
 
         {
-            use egl_wrapper::display::EGLVersion;
+            let configs = search_configs(&display);
+            println!("config search results count: {}", configs.count());
+
+            for config in configs.iter() {
+                config.all().unwrap();
+            }
+        }
+
+        println!();
+
+        //thread::sleep(Duration::from_secs(2));
+    }
+}
+
+
+fn search_configs<'a>(display: &'a EGLDisplay) -> Configs<'a> {
+    use egl_wrapper::display::EGLVersion;
             use egl_wrapper::config::{
                 UnsignedIntegerSearchAttributes,
                 SurfaceType,
@@ -125,15 +199,5 @@ fn default() {
 
             let configs = display.config_search(options.build()).unwrap();
 
-            println!("config search results count: {}", configs.count());
-
-            for config in configs.iter() {
-                config.all().unwrap();
-            }
-        }
-
-        println!();
-
-        thread::sleep(Duration::from_secs(2));
-    }
+            configs
 }

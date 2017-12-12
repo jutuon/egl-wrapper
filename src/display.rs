@@ -8,7 +8,8 @@ use std::marker::PhantomData;
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
-use config::{Configs, ConfigSearchOptionsBuilder, ConfigSearchOptions};
+use config::{Configs, ConfigSearchOptionsBuilder, ConfigSearchOptions, Config};
+use surface::{WindowSurfaceBuilder};
 
 #[derive(Debug)]
 pub enum DisplayCreationError {
@@ -229,6 +230,10 @@ impl EGLDisplay {
         }
 
         Ok(Configs::new(self, vec))
+    }
+
+    pub fn window_surface_builder<'a>(&'a self, config: Config<'a>) -> WindowSurfaceBuilder<'a> {
+        WindowSurfaceBuilder::new(config)
     }
 }
 

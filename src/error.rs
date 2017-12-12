@@ -2,6 +2,7 @@
 use egl_sys::ffi::types::EGLenum;
 use egl_sys::ffi;
 
+#[derive(Debug)]
 pub enum EGLError {
     NotInitialized,
     BadAccess,
@@ -21,20 +22,20 @@ pub enum EGLError {
 }
 
 impl EGLError {
-    pub(crate) fn check_errors() -> Result<(), EGLError> {
+    pub(crate) fn check_errors() -> Option<EGLError> {
         let result = unsafe {
             ffi::GetError()
         };
 
         if result < 0 {
             eprintln!("egl_wrapper: unknown EGL error value: {}", result);
-            return Err(EGLError::UnknownError)
+            return Some(EGLError::UnknownError)
         }
 
         let result = result as EGLenum;
 
         let error = match result {
-            ffi::SUCCESS             => return Ok(()),
+            ffi::SUCCESS             => return None,
             ffi::CONTEXT_LOST        => EGLError::ContextLost,
             ffi::NOT_INITIALIZED     => EGLError::NotInitialized,
             ffi::BAD_ACCESS          => EGLError::BadAccess,
@@ -55,6 +56,6 @@ impl EGLError {
             }
         };
 
-        return Err(error);
+        return Some(error);
     }
 }
