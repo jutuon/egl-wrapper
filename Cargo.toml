@@ -16,3 +16,6 @@ path = "../egl-sys"
 features = ["racer_autocomplete_workaround", "extensions_module"]
 #git = "https://github.com/jutuon/egl-sys"
 
+
+[dev-dependencies]
+gl = "0.7.0"

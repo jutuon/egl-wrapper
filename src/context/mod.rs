@@ -33,6 +33,10 @@ impl <'a, T: Context<'a>> SingleContext<'a, T> {
             context: T::create(config)?,
         })
     }
+
+    pub fn context(&self) -> &T {
+        &self.context
+    }
 }
 
 

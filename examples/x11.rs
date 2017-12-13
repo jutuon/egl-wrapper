@@ -1,10 +1,13 @@
 
 extern crate egl_wrapper;
 
+extern crate gl;
 extern crate x11;
 
 use x11::xlib;
 
+use std::os::raw;
+use std::ffi::{CString, CStr};
 use std::ptr::null;
 use std::thread;
 use std::time::Duration;
@@ -12,6 +15,11 @@ use std::mem;
 
 use egl_wrapper::config::Configs;
 use egl_wrapper::display::EGLDisplay;
+use egl_wrapper::ffi;
+use egl_wrapper::context::CurrentContext;
+
+
+use egl_wrapper::surface::Surface;
 
 #[link(name="X11")]
 extern {}
@@ -91,7 +99,21 @@ fn x11() {
 
         let egl_window_surface = display.window_surface_builder(config.clone()).build(window).unwrap();
 
-        let context = display.opengl_context(&config).unwrap();
+        let context = display.opengl_context(&config).unwrap().unwrap();
+
+        context.context().make_current(&egl_window_surface).unwrap();
+
+        gl::load_with(|s| {
+            let c_string = CString::new(s);
+            ffi::GetProcAddress(c_string.unwrap().as_ptr()) as *const raw::c_void
+        });
+
+        gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+        gl::Clear(gl::COLOR_BUFFER_BIT);
+
+        print_opengl_info();
+
+        egl_wrapper::ffi::SwapBuffers(display.raw(), egl_window_surface.raw());
 
         thread::sleep(Duration::from_secs(2));
 
@@ -204,4 +226,36 @@ fn search_configs<'a>(display: &'a EGLDisplay) -> Configs<'a> {
     let configs = display.config_search(options.build()).unwrap();
 
     configs
+}
+
+pub fn print_opengl_info() {
+    println!("OpenGL context information:");
+    println!("  Version:  {:?}", get_version_string());
+    println!("  Vendor:   {:?}", get_vendor_string());
+    println!("  Renderer: {:?}", get_renderer_string());
+}
+
+
+/// Return OpenGL version string.
+pub fn get_version_string<'a>() -> &'a CStr {
+    unsafe {
+        let ptr_to_str = gl::GetString(gl::VERSION) as *const raw::c_char;
+        CStr::from_ptr(ptr_to_str)
+    }
+}
+
+/// Return OpenGL vendor string.
+pub fn get_vendor_string<'a>() -> &'a CStr {
+    unsafe {
+        let ptr_to_str = gl::GetString(gl::VENDOR) as *const raw::c_char;
+        CStr::from_ptr(ptr_to_str)
+    }
+}
+
+/// Return OpenGL renderer string.
+pub fn get_renderer_string<'a>() -> &'a CStr {
+    unsafe {
+        let ptr_to_str = gl::GetString(gl::RENDERER) as *const raw::c_char;
+        CStr::from_ptr(ptr_to_str)
+    }
 }

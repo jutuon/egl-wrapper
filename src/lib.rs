@@ -13,3 +13,6 @@ mod error;
 pub mod display;
 pub mod surface;
 pub mod context;
+
+
+pub use egl_sys::ffi;
