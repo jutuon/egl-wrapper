@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use egl_sys::ffi;
 
-use display::EGLDisplay;
+use display::Display;
 use config::Config;
 use utils::{AttributeList, AttributeListBuilder};
 

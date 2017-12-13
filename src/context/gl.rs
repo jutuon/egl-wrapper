@@ -8,13 +8,13 @@ use egl_sys::ffi;
 
 use surface::WindowSurface;
 use context::{ Context, CurrentContext };
-use display::EGLDisplay;
+use display::Display;
 use error::EGLError;
 use config::Config;
 
 
 pub struct OpenGLContext<'a> {
-    display: &'a EGLDisplay,
+    display: &'a Display,
     raw_context: ffi::types::EGLContext,
     _marker: PhantomData<ffi::types::EGLContext>,
 }
@@ -47,7 +47,7 @@ impl <'a> Context<'a> for OpenGLContext<'a> {
         }
     }
 
-    fn display(&self) -> &EGLDisplay {
+    fn display(&self) -> &Display {
         self.display
     }
 

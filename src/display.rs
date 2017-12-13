@@ -46,7 +46,7 @@ impl EGLVersion {
 // TODO: multiple calls to GetDisplay will return same EGLDisplay handle
 
 /// EGLDisplay with initialized EGL
-pub struct EGLDisplay {
+pub struct Display {
     egl_version: EGLVersion,
     display: ffi::types::EGLDisplay,
     _marker: PhantomData<ffi::types::EGLDisplay>,
@@ -54,8 +54,8 @@ pub struct EGLDisplay {
 }
 
 
-impl EGLDisplay {
-    fn new(display_id: ffi::types::EGLNativeDisplayType) -> Result<EGLDisplay, DisplayCreationError> {
+impl Display {
+    fn new(display_id: ffi::types::EGLNativeDisplayType) -> Result<Display, DisplayCreationError> {
         let display = unsafe {
             ffi::GetDisplay(display_id)
         };
@@ -79,7 +79,7 @@ impl EGLDisplay {
 
         match version {
             Some(version) => {
-                Ok(EGLDisplay {
+                Ok(Display {
                     egl_version: version,
                     display,
                     _marker: PhantomData,
@@ -87,7 +87,7 @@ impl EGLDisplay {
                 })
             },
             None => {
-                let display = EGLDisplay {
+                let display = Display {
                     egl_version: EGLVersion::EGL_1_4,
                     display,
                     _marker: PhantomData,
@@ -101,12 +101,12 @@ impl EGLDisplay {
         }
     }
 
-    pub fn default_display() -> Result<EGLDisplay, DisplayCreationError> {
-        EGLDisplay::new(ffi::DEFAULT_DISPLAY)
+    pub fn default_display() -> Result<Display, DisplayCreationError> {
+        Display::new(ffi::DEFAULT_DISPLAY)
     }
 
-    pub fn from_native_display_type(display_id: ffi::types::EGLNativeDisplayType) -> Result<EGLDisplay, DisplayCreationError> {
-        EGLDisplay::new(display_id)
+    pub fn from_native_display_type(display_id: ffi::types::EGLNativeDisplayType) -> Result<Display, DisplayCreationError> {
+        Display::new(display_id)
     }
 
     pub fn raw(&self) -> ffi::types::EGLDisplay {
@@ -260,7 +260,7 @@ impl EGLDisplay {
     }
 }
 
-impl Drop for EGLDisplay {
+impl Drop for Display {
     fn drop(&mut self) {
         let result = unsafe {
             ffi::Terminate(self.display)
@@ -272,7 +272,7 @@ impl Drop for EGLDisplay {
 
         // TODO: call eglReleaseThread
 
-        // TODO: Make sure that there is no current contexts when EGLDisplay is
+        // TODO: Make sure that there is no current contexts when Display is
         //       dropped.
     }
 }

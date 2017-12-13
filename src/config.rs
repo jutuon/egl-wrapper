@@ -6,7 +6,7 @@ use egl_sys::{ extensions, ffi };
 use egl_sys::ffi::types::{ EGLint, EGLenum, EGLBoolean };
 
 use utils::{ PositiveInteger, IntegerError, UnsignedInteger, AttributeList, AttributeListBuilder };
-use display::EGLDisplay;
+use display::Display;
 use display::EGLVersion;
 
 #[derive(Debug)]
@@ -21,12 +21,12 @@ pub enum ColorBuffer {
 
 
 pub struct Configs<'a> {
-    display: &'a EGLDisplay,
+    display: &'a Display,
     raw_configs: Vec<ffi::types::EGLConfig>,
 }
 
 impl <'a> Configs<'a> {
-    pub(crate) fn new(display: &EGLDisplay, raw_configs: Vec<ffi::types::EGLConfig>) -> Configs {
+    pub(crate) fn new(display: &Display, raw_configs: Vec<ffi::types::EGLConfig>) -> Configs {
         Configs {
             display,
             raw_configs,
@@ -47,12 +47,12 @@ impl <'a> Configs<'a> {
 }
 
 pub struct Iter<'a> {
-    display: &'a EGLDisplay,
+    display: &'a Display,
     raw_configs_iter: slice::Iter<'a, ffi::types::EGLConfig>,
 }
 
 impl <'a> Iter<'a> {
-    fn new(display: &'a EGLDisplay, raw_configs_iter: slice::Iter<'a, ffi::types::EGLConfig>) -> Iter<'a> {
+    fn new(display: &'a Display, raw_configs_iter: slice::Iter<'a, ffi::types::EGLConfig>) -> Iter<'a> {
         Iter {
             display,
             raw_configs_iter,
@@ -74,12 +74,12 @@ impl <'a> Iterator for Iter<'a> {
 }
 
 pub struct IntoIter<'a> {
-    display: &'a EGLDisplay,
+    display: &'a Display,
     raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>,
 }
 
 impl <'a> IntoIter<'a> {
-    fn new(display: &'a EGLDisplay, raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>) -> IntoIter<'a> {
+    fn new(display: &'a Display, raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>) -> IntoIter<'a> {
         IntoIter {
             display,
             raw_configs_iter,
@@ -103,7 +103,7 @@ impl <'a> Iterator for IntoIter<'a> {
 
 #[derive(Clone)]
 pub struct Config<'a> {
-    display: &'a EGLDisplay,
+    display: &'a Display,
     raw_config: ffi::types::EGLConfig,
 }
 
@@ -112,7 +112,7 @@ impl <'a> Config<'a> {
         self.raw_config
     }
 
-    pub fn display(&self) -> &EGLDisplay {
+    pub fn display(&self) -> &Display {
         self.display
     }
 

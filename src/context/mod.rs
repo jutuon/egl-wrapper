@@ -8,7 +8,7 @@ pub mod vg;
 use egl_sys::ffi;
 
 use config::Config;
-use display::EGLDisplay;
+use display::Display;
 use error::EGLError;
 use surface::Surface;
 
@@ -20,9 +20,9 @@ pub struct ContextManager {
 }
 
 
-/// Create only one `SingleContext` per EGLDisplay
+/// Create only one `SingleContext` per Display
 pub struct SingleContext<'a, T: Context<'a>> {
-    display: &'a EGLDisplay,
+    display: &'a Display,
     context: T,
 }
 
@@ -58,7 +58,7 @@ pub trait Context<'a>: Drop + Sized {
     /// This function calls `bind_api` before creating the context.
     fn create(&'a Config<'a>) -> Result<Self, Option<EGLError>>;
 
-    fn display(&self) -> &EGLDisplay;
+    fn display(&self) -> &Display;
 
     fn raw(&self) -> ffi::types::EGLContext;
 }

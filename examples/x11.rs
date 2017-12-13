@@ -14,7 +14,7 @@ use std::time::Duration;
 use std::mem;
 
 use egl_wrapper::config::Configs;
-use egl_wrapper::display::EGLDisplay;
+use egl_wrapper::display::Display;
 use egl_wrapper::ffi;
 use egl_wrapper::context::CurrentContext;
 
@@ -42,7 +42,7 @@ fn x11() {
         }
 
 
-        let mut display = egl_wrapper::display::EGLDisplay::from_native_display_type(display_ptr).expect("error");
+        let mut display = egl_wrapper::display::Display::from_native_display_type(display_ptr).expect("error");
 
         println!("egl: version {:?}", display.version());
 
@@ -132,7 +132,7 @@ fn x11() {
 fn default() {
     unsafe {
 
-        let mut display = egl_wrapper::display::EGLDisplay::default_display().expect("error");
+        let mut display = egl_wrapper::display::Display::default_display().expect("error");
 
 
         // Test querying version information
@@ -190,7 +190,7 @@ fn default() {
 }
 
 
-fn search_configs<'a>(display: &'a EGLDisplay) -> Configs<'a> {
+fn search_configs<'a>(display: &'a Display) -> Configs<'a> {
     use egl_wrapper::display::EGLVersion;
     use egl_wrapper::config::{
         UnsignedIntegerSearchAttributes,
