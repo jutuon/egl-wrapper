@@ -3,30 +3,29 @@ use std::marker::PhantomData;
 
 use egl_sys::ffi;
 
-use display::Display;
-use config::Config;
-use utils::{AttributeList, AttributeListBuilder};
+use config::DisplayConfig;
+use utils::{AttributeListBuilder};
 
 use error::EGLError;
 
 
-pub struct WindowSurface<'a> {
-    config: Config<'a>,
+pub struct WindowSurface {
+    display_config: DisplayConfig,
     raw_surface: ffi::types::EGLSurface,
     _marker: PhantomData<ffi::types::EGLSurface>,
 }
 
 
-impl <'a> Surface for WindowSurface<'a> {
+impl Surface for WindowSurface {
     fn raw(&self) -> ffi::types::EGLSurface {
         self.raw_surface
     }
 }
 
-impl <'a> Drop for WindowSurface<'a> {
+impl Drop for WindowSurface {
     fn drop(&mut self) {
         let result = unsafe {
-            ffi::DestroySurface(self.config.display().raw(), self.raw_surface)
+            ffi::DestroySurface(self.display_config.raw_display(), self.raw_surface)
         };
 
         if result == ffi::FALSE {
@@ -38,15 +37,15 @@ impl <'a> Drop for WindowSurface<'a> {
     }
 }
 
-pub struct WindowSurfaceBuilder<'a> {
-    config: Config<'a>,
+pub struct WindowSurfaceBuilder {
+    display_config: DisplayConfig,
     attributes: AttributeListBuilder,
 }
 
-impl <'a> WindowSurfaceBuilder<'a> {
-    pub(crate) fn new(config: Config<'a>) -> WindowSurfaceBuilder<'a> {
+impl WindowSurfaceBuilder {
+    pub(crate) fn new(display_config: DisplayConfig) -> WindowSurfaceBuilder {
         WindowSurfaceBuilder {
-            config,
+            display_config,
             attributes: AttributeListBuilder::new(),
         }
     }
@@ -54,11 +53,11 @@ impl <'a> WindowSurfaceBuilder<'a> {
     // TODO: WindowSurface attributes
 
 
-    pub fn build(self, native_window: ffi::types::EGLNativeWindowType) -> Result<WindowSurface<'a>, Option<EGLError>> {
+    pub fn build(self, native_window: ffi::types::EGLNativeWindowType) -> Result<WindowSurface, Option<EGLError>> {
         let attributes = self.attributes.build();
 
         let result = unsafe {
-            ffi::CreateWindowSurface(self.config.display().raw(), self.config.raw(), native_window, attributes.ptr())
+            ffi::CreateWindowSurface(self.display_config.raw_display(), self.display_config.raw(), native_window, attributes.ptr())
         };
 
         if result == ffi::NO_SURFACE {
@@ -66,7 +65,7 @@ impl <'a> WindowSurfaceBuilder<'a> {
         }
 
         Ok(WindowSurface {
-            config: self.config,
+            display_config: self.display_config,
             raw_surface: result,
             _marker: PhantomData,
         })

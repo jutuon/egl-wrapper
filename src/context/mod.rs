@@ -7,12 +7,9 @@ pub mod vg;
 
 use egl_sys::ffi;
 
-use config::Config;
-use display::Display;
+use config::DisplayConfig;
 use error::EGLError;
 use surface::Surface;
-
-use self::gl::OpenGLContext;
 
 /// Handle multiple contexts.
 pub struct ContextManager {
@@ -21,15 +18,13 @@ pub struct ContextManager {
 
 
 /// Create only one `SingleContext` per Display
-pub struct SingleContext<'a, T: Context<'a>> {
-    display: &'a Display,
+pub struct SingleContext<T: Context> {
     context: T,
 }
 
-impl <'a, T: Context<'a>> SingleContext<'a, T> {
-    pub(crate) fn create(config: &'a Config<'a>) -> Result<SingleContext<'a, T>, Option<EGLError>> {
+impl <T: Context> SingleContext<T> {
+    pub(crate) fn create(config: DisplayConfig) -> Result<SingleContext<T>, Option<EGLError>> {
         Ok(SingleContext {
-            display: config.display(),
             context: T::create(config)?,
         })
     }
@@ -40,7 +35,7 @@ impl <'a, T: Context<'a>> SingleContext<'a, T> {
 }
 
 
-pub trait Context<'a>: Drop + Sized {
+pub trait Context: Drop + Sized {
     const API_TYPE: ffi::types::EGLenum;
 
     fn bind_api() -> Result<(), Option<EGLError>> {
@@ -56,17 +51,17 @@ pub trait Context<'a>: Drop + Sized {
     }
 
     /// This function calls `bind_api` before creating the context.
-    fn create(&'a Config<'a>) -> Result<Self, Option<EGLError>>;
+    fn create(DisplayConfig) -> Result<Self, Option<EGLError>>;
 
-    fn display(&self) -> &Display;
+    fn raw_display(&self) -> ffi::types::EGLDisplay;
 
     fn raw(&self) -> ffi::types::EGLContext;
 }
 
-pub trait CurrentContext<'a, T: Surface>: Context<'a> {
+pub trait CurrentContext<T: Surface>: Context {
     fn make_current(&self, surface: &T) -> Result<(), Option<EGLError>> {
         let result = unsafe {
-            ffi::MakeCurrent(self.display().raw(), surface.raw(), surface.raw(), self.raw())
+            ffi::MakeCurrent(self.raw_display(), surface.raw(), surface.raw(), self.raw())
         };
 
         if result == ffi::TRUE {

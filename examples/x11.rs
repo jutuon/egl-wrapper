@@ -94,12 +94,12 @@ fn x11() {
 
         let config = {
             let configs = search_configs(&display);
-            configs.into_iter().next().unwrap()
+            configs.into_iter().next().unwrap().into_display_config()
         };
 
         let egl_window_surface = display.window_surface_builder(config.clone()).build(window).unwrap();
 
-        let context = display.opengl_context(&config).unwrap().unwrap();
+        let context = display.opengl_context(config).unwrap().unwrap();
 
         context.context().make_current(&egl_window_surface).unwrap();
 
@@ -108,7 +108,7 @@ fn x11() {
             ffi::GetProcAddress(c_string.unwrap().as_ptr()) as *const raw::c_void
         });
 
-        gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+        gl::ClearColor(0.0, 0.5, 0.8, 0.0);
         gl::Clear(gl::COLOR_BUFFER_BIT);
 
         print_opengl_info();

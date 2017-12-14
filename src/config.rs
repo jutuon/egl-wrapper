@@ -1,12 +1,13 @@
 
 use std::slice;
 use std::vec;
+use std::sync::Arc;
 
 use egl_sys::{ extensions, ffi };
 use egl_sys::ffi::types::{ EGLint, EGLenum, EGLBoolean };
 
 use utils::{ PositiveInteger, IntegerError, UnsignedInteger, AttributeList, AttributeListBuilder };
-use display::Display;
+use display::{Display, DisplayHandle};
 use display::EGLVersion;
 
 #[derive(Debug)]
@@ -17,7 +18,21 @@ pub enum ColorBuffer {
     LuminanceAndAlpha(PositiveInteger, PositiveInteger),
 }
 
+#[derive(Clone)]
+pub struct DisplayConfig {
+    display_handle: Arc<DisplayHandle>,
+    raw_config: ffi::types::EGLConfig,
+}
 
+impl DisplayConfig {
+    pub fn raw_display(&self) -> ffi::types::EGLDisplay {
+        self.display_handle.raw()
+    }
+
+    pub fn raw(&self) -> ffi::types::EGLConfig {
+        self.raw_config
+    }
+}
 
 
 pub struct Configs<'a> {
@@ -100,14 +115,19 @@ impl <'a> Iterator for IntoIter<'a> {
     }
 }
 
-
-#[derive(Clone)]
 pub struct Config<'a> {
     display: &'a Display,
     raw_config: ffi::types::EGLConfig,
 }
 
 impl <'a> Config<'a> {
+    pub fn into_display_config(self) -> DisplayConfig {
+        DisplayConfig {
+            display_handle: self.display.display_handle().clone(),
+            raw_config: self.raw_config,
+        }
+    }
+
     pub fn raw(&self) -> ffi::types::EGLConfig {
         self.raw_config
     }

@@ -4,11 +4,12 @@ use std::ffi::CStr;
 use std::ptr;
 use std::borrow::Cow;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
-use config::{Configs, ConfigSearchOptionsBuilder, ConfigSearchOptions, Config};
+use config::{Configs, ConfigSearchOptionsBuilder, ConfigSearchOptions, DisplayConfig};
 use surface::{WindowSurfaceBuilder};
 use context::gl::OpenGLContext;
 use context::SingleContext;
@@ -41,6 +42,43 @@ impl EGLVersion {
     }
 }
 
+pub(crate) struct DisplayHandle {
+    raw_display: ffi::types::EGLDisplay,
+    _marker: PhantomData<ffi::types::EGLDisplay>,
+}
+
+impl DisplayHandle {
+    fn new_in_arc(raw_display: ffi::types::EGLDisplay) -> Arc<DisplayHandle> {
+        let display_handle = DisplayHandle {
+            raw_display,
+            _marker: PhantomData,
+        };
+
+        Arc::new(display_handle)
+    }
+
+    pub fn raw(&self) -> ffi::types::EGLDisplay {
+        self.raw_display
+    }
+}
+
+
+impl Drop for DisplayHandle {
+    fn drop(&mut self) {
+        let result = unsafe {
+            ffi::Terminate(self.raw_display)
+        };
+
+        if result == ffi::FALSE {
+            eprintln!("egl_wrapper: eglTerminate returned false");
+        }
+
+        // TODO: call eglReleaseThread
+
+        // TODO: Make sure that there is no current contexts when Display is
+        //       dropped.
+    }
+}
 
 
 // TODO: multiple calls to GetDisplay will return same EGLDisplay handle
@@ -48,19 +86,18 @@ impl EGLVersion {
 /// EGLDisplay with initialized EGL
 pub struct Display {
     egl_version: EGLVersion,
-    display: ffi::types::EGLDisplay,
-    _marker: PhantomData<ffi::types::EGLDisplay>,
+    display_handle: Arc<DisplayHandle>,
     context_created: bool,
 }
 
 
 impl Display {
     fn new(display_id: ffi::types::EGLNativeDisplayType) -> Result<Display, DisplayCreationError> {
-        let display = unsafe {
+        let raw_display = unsafe {
             ffi::GetDisplay(display_id)
         };
 
-        if display == ffi::NO_DISPLAY {
+        if raw_display == ffi::NO_DISPLAY {
             return Err(DisplayCreationError::NoMatchingDisplay)
         }
 
@@ -68,7 +105,7 @@ impl Display {
         let mut version_minor = 0;
 
         let result = unsafe {
-            ffi::Initialize(display, &mut version_major, &mut version_minor)
+            ffi::Initialize(raw_display, &mut version_major, &mut version_minor)
         };
 
         if result == ffi::FALSE {
@@ -81,16 +118,14 @@ impl Display {
             Some(version) => {
                 Ok(Display {
                     egl_version: version,
-                    display,
-                    _marker: PhantomData,
+                    display_handle: DisplayHandle::new_in_arc(raw_display),
                     context_created: false,
                 })
             },
             None => {
                 let display = Display {
                     egl_version: EGLVersion::EGL_1_4,
-                    display,
-                    _marker: PhantomData,
+                    display_handle: DisplayHandle::new_in_arc(raw_display),
                     context_created: false,
                 };
 
@@ -110,7 +145,7 @@ impl Display {
     }
 
     pub fn raw(&self) -> ffi::types::EGLDisplay {
-        self.display
+        self.display_handle.raw()
     }
 
     pub fn version(&self) -> EGLVersion {
@@ -135,7 +170,7 @@ impl Display {
 
     fn query_string(&self, name: EGLint) -> Result<Cow<str>, ()> {
         unsafe {
-            let ptr = ffi::QueryString(self.display, name);
+            let ptr = ffi::QueryString(self.raw(), name);
 
             if ptr.is_null() {
                 return Err(());
@@ -154,7 +189,7 @@ impl Display {
         let mut new_count = 0;
 
         unsafe {
-            let result = ffi::GetConfigs(self.display, vec.as_mut_slice().as_mut_ptr(), buf_config_count, &mut new_count);
+            let result = ffi::GetConfigs(self.raw(), vec.as_mut_slice().as_mut_ptr(), buf_config_count, &mut new_count);
 
             if result == ffi::FALSE {
                 return Err(());
@@ -174,7 +209,7 @@ impl Display {
         let mut count = 0;
 
         unsafe {
-            let result = ffi::GetConfigs(self.display, ptr::null_mut(), 0, &mut count);
+            let result = ffi::GetConfigs(self.raw(), ptr::null_mut(), 0, &mut count);
 
             if result == ffi::FALSE {
                 return 0;
@@ -196,7 +231,7 @@ impl Display {
         let mut count = 0;
 
         unsafe {
-            let result = ffi::ChooseConfig(self.display, options.attribute_list().ptr(), ptr::null_mut(), 0, &mut count);
+            let result = ffi::ChooseConfig(self.raw(), options.attribute_list().ptr(), ptr::null_mut(), 0, &mut count);
 
             if result == ffi::FALSE {
                 return Err(());
@@ -215,7 +250,7 @@ impl Display {
 
         unsafe {
             let result = ffi::ChooseConfig(
-                self.display,
+                self.raw(),
                 options.attribute_list().ptr(),
                 vec.as_mut_slice().as_mut_ptr(),
                 count,
@@ -238,11 +273,11 @@ impl Display {
         Ok(Configs::new(self, vec))
     }
 
-    pub fn window_surface_builder<'a>(&'a self, config: Config<'a>) -> WindowSurfaceBuilder<'a> {
+    pub fn window_surface_builder(&self, config: DisplayConfig) -> WindowSurfaceBuilder {
         WindowSurfaceBuilder::new(config)
     }
 
-    pub fn opengl_context<'a>(&'a self, config: &'a Config<'a>) -> Option<Result<SingleContext<'a, OpenGLContext<'a>>, Option<EGLError>>> {
+    pub fn opengl_context(&mut self, config: DisplayConfig) -> Option<Result<SingleContext<OpenGLContext>, Option<EGLError>>> {
         match self.context_created {
             true => None,
             false => {
@@ -251,30 +286,18 @@ impl Display {
                 if context.is_err() {
                     Some(context)
                 } else {
-                    //self.context_created = true;
+                    self.context_created = true;
                     Some(context)
                 }
             }
         }
+    }
 
+    pub(crate) fn display_handle(&self) -> &Arc<DisplayHandle> {
+        &self.display_handle
     }
 }
 
-impl Drop for Display {
-    fn drop(&mut self) {
-        let result = unsafe {
-            ffi::Terminate(self.display)
-        };
 
-        if result == ffi::FALSE {
-            eprintln!("egl_wrapper: eglTerminate returned false");
-        }
-
-        // TODO: call eglReleaseThread
-
-        // TODO: Make sure that there is no current contexts when Display is
-        //       dropped.
-    }
-}
 
 
