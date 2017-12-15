@@ -1,4 +1,8 @@
 
+pub mod gl;
+pub mod gles;
+pub mod vg;
+
 use std::marker::PhantomData;
 
 use egl_sys::ffi;

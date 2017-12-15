@@ -1,4 +1,8 @@
 
+pub mod gl;
+pub mod gles;
+pub mod vg;
+
 use std::slice;
 use std::vec;
 use std::sync::Arc;
