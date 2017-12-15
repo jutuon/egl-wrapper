@@ -16,7 +16,7 @@ use std::mem;
 use egl_wrapper::config::Configs;
 use egl_wrapper::display::Display;
 use egl_wrapper::ffi;
-use egl_wrapper::context::CurrentContext;
+use egl_wrapper::context::{ MakeCurrentSurfaceAndContext };
 
 
 use egl_wrapper::surface::Surface;
@@ -99,9 +99,9 @@ fn x11() {
 
         let egl_window_surface = display.window_surface_builder(config.clone()).build(window).unwrap();
 
-        let context = display.opengl_context(config).unwrap().unwrap();
+        let context = display.opengl_context(config).unwrap();
 
-        context.context().make_current(&egl_window_surface).unwrap();
+        let mut current_context = context.make_current(egl_window_surface).unwrap();
 
         gl::load_with(|s| {
             let c_string = CString::new(s);
@@ -113,7 +113,7 @@ fn x11() {
 
         print_opengl_info();
 
-        egl_wrapper::ffi::SwapBuffers(display.raw(), egl_window_surface.raw());
+        current_context.swap_buffers().unwrap();
 
         thread::sleep(Duration::from_secs(2));
 

@@ -18,7 +18,7 @@ pub enum ColorBuffer {
     LuminanceAndAlpha(PositiveInteger, PositiveInteger),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DisplayConfig {
     display_handle: Arc<DisplayHandle>,
     raw_config: ffi::types::EGLConfig,

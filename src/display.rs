@@ -42,6 +42,7 @@ impl EGLVersion {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct DisplayHandle {
     raw_display: ffi::types::EGLDisplay,
     _marker: PhantomData<ffi::types::EGLDisplay>,
@@ -84,10 +85,10 @@ impl Drop for DisplayHandle {
 // TODO: multiple calls to GetDisplay will return same EGLDisplay handle
 
 /// EGLDisplay with initialized EGL
+#[derive(Debug)]
 pub struct Display {
     egl_version: EGLVersion,
     display_handle: Arc<DisplayHandle>,
-    context_created: bool,
 }
 
 
@@ -119,14 +120,12 @@ impl Display {
                 Ok(Display {
                     egl_version: version,
                     display_handle: DisplayHandle::new_in_arc(raw_display),
-                    context_created: false,
                 })
             },
             None => {
                 let display = Display {
                     egl_version: EGLVersion::EGL_1_4,
                     display_handle: DisplayHandle::new_in_arc(raw_display),
-                    context_created: false,
                 };
 
                 drop(display);
@@ -277,20 +276,8 @@ impl Display {
         WindowSurfaceBuilder::new(config)
     }
 
-    pub fn opengl_context(&mut self, config: DisplayConfig) -> Option<Result<SingleContext<OpenGLContext>, Option<EGLError>>> {
-        match self.context_created {
-            true => None,
-            false => {
-                let context = SingleContext::create(config);
-
-                if context.is_err() {
-                    Some(context)
-                } else {
-                    self.context_created = true;
-                    Some(context)
-                }
-            }
-        }
+    pub fn opengl_context(self, config: DisplayConfig) -> Result<SingleContext<OpenGLContext>, DisplayError<Option<EGLError>>> {
+        SingleContext::opengl_context(config).map_err(|e| DisplayError::new(self, e))
     }
 
     pub(crate) fn display_handle(&self) -> &Arc<DisplayHandle> {
@@ -298,6 +285,18 @@ impl Display {
     }
 }
 
+/// Return ownership of Display back if error occurred.
+#[derive(Debug)]
+pub struct DisplayError<E> {
+    pub display: Display,
+    pub error: E,
+}
 
-
-
+impl <E> DisplayError<E>  {
+    fn new(display: Display, error: E) -> DisplayError<E> {
+        DisplayError {
+            display,
+            error,
+        }
+    }
+}

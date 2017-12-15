@@ -2,22 +2,21 @@
 //! OpenGL context
 
 use std::marker::PhantomData;
-use std::ptr;
+
 
 use egl_sys::ffi;
 
 use surface::WindowSurface;
-use context::{ Context, CurrentContext };
-use error::EGLError;
+use context::{ Context, MakeCurrentSurfaceAndContext, RawContextUtils, SingleContext };
 use config::DisplayConfig;
 
 
+#[derive(Debug)]
 pub struct OpenGLContext {
     display_config: DisplayConfig,
     raw_context: ffi::types::EGLContext,
     _marker: PhantomData<ffi::types::EGLContext>,
 }
-
 
 impl Drop for OpenGLContext {
     fn drop(&mut self) {
@@ -25,27 +24,19 @@ impl Drop for OpenGLContext {
     }
 }
 
-impl Context for OpenGLContext {
+impl RawContextUtils for OpenGLContext {
     const API_TYPE: ffi::types::EGLenum = ffi::OPENGL_API;
 
-    fn create(config: DisplayConfig) -> Result<OpenGLContext, Option<EGLError>> {
-        Self::bind_api()?;
-
-        let raw_context = unsafe {
-            ffi::CreateContext(config.raw_display(), config.raw(), ffi::NO_CONTEXT, ptr::null())
-        };
-
-        if raw_context == ffi::NO_CONTEXT {
-            Err(EGLError::check_errors())
-        } else {
-            Ok(OpenGLContext {
-                display_config: config,
-                raw_context,
-                _marker: PhantomData,
-            })
+    fn new(display_config: DisplayConfig, raw_context: ffi::types::EGLContext) -> Self {
+        OpenGLContext {
+            display_config,
+            raw_context,
+            _marker: PhantomData,
         }
     }
+}
 
+impl Context for OpenGLContext {
     fn raw_display(&self) -> ffi::types::EGLDisplay {
         self.display_config.raw_display()
     }
@@ -55,4 +46,4 @@ impl Context for OpenGLContext {
     }
 }
 
-impl CurrentContext<WindowSurface> for OpenGLContext {}
+impl MakeCurrentSurfaceAndContext<WindowSurface> for SingleContext<OpenGLContext> {}

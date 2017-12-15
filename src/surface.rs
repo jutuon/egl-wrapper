@@ -8,7 +8,7 @@ use utils::{AttributeListBuilder};
 
 use error::EGLError;
 
-
+#[derive(Debug)]
 pub struct WindowSurface {
     display_config: DisplayConfig,
     raw_surface: ffi::types::EGLSurface,
