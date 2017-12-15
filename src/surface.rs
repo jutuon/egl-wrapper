@@ -17,7 +17,7 @@ pub struct WindowSurface {
 
 
 impl Surface for WindowSurface {
-    fn raw(&self) -> ffi::types::EGLSurface {
+    fn raw_surface(&self) -> ffi::types::EGLSurface {
         self.raw_surface
     }
 }
@@ -57,7 +57,7 @@ impl WindowSurfaceBuilder {
         let attributes = self.attributes.build();
 
         let result = unsafe {
-            ffi::CreateWindowSurface(self.display_config.raw_display(), self.display_config.raw(), native_window, attributes.ptr())
+            ffi::CreateWindowSurface(self.display_config.raw_display(), self.display_config.raw_config(), native_window, attributes.ptr())
         };
 
         if result == ffi::NO_SURFACE {
@@ -75,5 +75,5 @@ impl WindowSurfaceBuilder {
 
 
 pub trait Surface {
-    fn raw(&self) -> ffi::types::EGLSurface;
+    fn raw_surface(&self) -> ffi::types::EGLSurface;
 }

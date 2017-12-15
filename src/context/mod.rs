@@ -47,8 +47,8 @@ impl <C: Context> Context for SingleContext<C> {
         self.context.raw_display()
     }
 
-    fn raw(&self) -> ffi::types::EGLContext {
-        self.context.raw()
+    fn raw_context(&self) -> ffi::types::EGLContext {
+        self.context.raw_context()
     }
 }
 
@@ -74,7 +74,7 @@ pub(crate) trait RawContextUtils: Context {
         Self::bind_api()?;
 
         let raw_context = unsafe {
-            ffi::CreateContext(config.raw_display(), config.raw(), ffi::NO_CONTEXT, ptr::null())
+            ffi::CreateContext(config.raw_display(), config.raw_config(), ffi::NO_CONTEXT, ptr::null())
         };
 
         if raw_context == ffi::NO_CONTEXT {
@@ -91,13 +91,13 @@ pub(crate) trait RawContextUtils: Context {
 pub trait Context: Sized {
     fn raw_display(&self) -> ffi::types::EGLDisplay;
 
-    fn raw(&self) -> ffi::types::EGLContext;
+    fn raw_context(&self) -> ffi::types::EGLContext;
 }
 
 pub trait MakeCurrentSurfaceAndContext<S: Surface>: Context {
     fn make_current(self, surface: S) -> Result<CurrentSurfaceAndContext<S, Self>, MakeCurrentError<S, Self, Option<EGLError>>> {
         let result = unsafe {
-            ffi::MakeCurrent(self.raw_display(), surface.raw(), surface.raw(), self.raw())
+            ffi::MakeCurrent(self.raw_display(), surface.raw_surface(), surface.raw_surface(), self.raw_context())
         };
 
         if result == ffi::TRUE {
@@ -119,7 +119,7 @@ pub struct CurrentSurfaceAndContext<S: Surface, C: Context> {
 impl <S: Surface, C: Context> CurrentSurfaceAndContext<S, C> {
     pub fn swap_buffers(&mut self) -> Result<(), Option<EGLError>> {
         let result = unsafe {
-            ffi::SwapBuffers(self.context.raw_display(), self.surface.raw())
+            ffi::SwapBuffers(self.context.raw_display(), self.surface.raw_surface())
         };
 
         if result == ffi::TRUE {

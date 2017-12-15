@@ -29,7 +29,7 @@ impl DisplayConfig {
         self.display_handle.raw()
     }
 
-    pub fn raw(&self) -> ffi::types::EGLConfig {
+    pub fn raw_config(&self) -> ffi::types::EGLConfig {
         self.raw_config
     }
 }

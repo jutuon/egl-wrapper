@@ -41,7 +41,7 @@ impl Context for OpenGLContext {
         self.display_config.raw_display()
     }
 
-    fn raw(&self) -> ffi::types::EGLContext {
+    fn raw_context(&self) -> ffi::types::EGLContext {
         self.raw_context
     }
 }
