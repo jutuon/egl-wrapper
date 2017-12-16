@@ -101,16 +101,22 @@ impl <'a> Config<'a> {
         }
     }
 
-    pub fn window_surface(self) -> Option<WindowSurfaceBuilder> {
-        // TODO: check config
-
-        Some(WindowSurfaceBuilder::new(self.into_display_config()))
+    pub fn window_surface_builder(self) -> Option<WindowSurfaceBuilder> {
+        match self.surface_type() {
+            Ok(surface_type) if surface_type.contains(SurfaceType::WINDOW) => {
+                Some(WindowSurfaceBuilder::new(self.into_display_config()))
+            }
+            _ => None
+        }
     }
 
-    pub fn opengl_context(self) -> Option<ConfigOpenGL> {
-        // TODO: check config
-
-        Some(ConfigOpenGL::new(self.into_display_config()))
+    pub fn config_opengl(self) -> Option<ConfigOpenGL> {
+        match self.client_api() {
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => {
+                Some(ConfigOpenGL::new(self.into_display_config()))
+            }
+            _ => None
+        }
     }
 }
 
