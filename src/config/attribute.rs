@@ -4,10 +4,10 @@
 use egl_sys::{ extensions, ffi };
 use egl_sys::ffi::types::{ EGLint, EGLenum, EGLBoolean };
 
-
 use utils::{ PositiveInteger, IntegerError, UnsignedInteger};
 use display::{Display, EGLVersion};
 
+/// Color buffer type and bit counts of colors.
 #[derive(Debug)]
 pub enum ColorBuffer {
     RGB(PositiveInteger, PositiveInteger, PositiveInteger),
@@ -18,18 +18,19 @@ pub enum ColorBuffer {
 
 #[repr(u32)]
 pub enum ConfigAttribute {
-    // BufferSize          = ffi::BUFFER_SIZE,
+    BufferSize          = ffi::BUFFER_SIZE,
     RedSize             = ffi::RED_SIZE,
     GreenSize           = ffi::GREEN_SIZE,
     BlueSize            = ffi::BLUE_SIZE,
     LuminanceSize       = ffi::LUMINANCE_SIZE,
     AlphaSize           = ffi::ALPHA_SIZE,
     AlphaMaskSize       = ffi::ALPHA_MASK_SIZE,
+    // Attributes related to rendering to textures.
     // BindToTextureRGB    = ffi::BIND_TO_TEXTURE_RGB,
     // BindToTextureRGBA   = ffi::BIND_TO_TEXTURE_RGBA,
     ColorBufferType     = ffi::COLOR_BUFFER_TYPE,
     ConfigCaveat        = ffi::CONFIG_CAVEAT,
-    // ConfigID            = ffi::CONFIG_ID,
+    ConfigID            = ffi::CONFIG_ID,
     Conformant          = ffi::CONFORMANT,
     DepthSize           = ffi::DEPTH_SIZE,
     Level               = ffi::LEVEL,
@@ -40,8 +41,9 @@ pub enum ConfigAttribute {
     MinSwapInterval     = ffi::MIN_SWAP_INTERVAL,
     NativeRenderable    = ffi::NATIVE_RENDERABLE,
     NativeVisualID      = ffi::NATIVE_VISUAL_ID,
-    // NativeVisualType    = ffi::NATIVE_VISUAL_TYPE,
+    NativeVisualType    = ffi::NATIVE_VISUAL_TYPE,
     RenderableType      = ffi::RENDERABLE_TYPE,
+    // Commented because attribute samples provides this information.
     // SampleBuffers       = ffi::SAMPLE_BUFFERS,
     Samples             = ffi::SAMPLES,
     StencilSize         = ffi::STENCIL_SIZE,
@@ -53,6 +55,7 @@ pub enum ConfigAttribute {
 }
 
 bitflags! {
+    /// Surface capabilities.
     pub struct SurfaceType: EGLenum {
         const WINDOW                  = ffi::WINDOW_BIT;
         const PIXMAP                  = ffi::PIXMAP_BIT;
@@ -77,7 +80,9 @@ bitflags! {
 
 #[derive(Debug)]
 pub struct ConfigInfo {
+    pub config_id: PositiveInteger,
     pub color_buffer: ColorBuffer,
+    pub color_buffer_size: PositiveInteger,
     pub alpha_mask_buffer: Option<PositiveInteger>,
     pub depth_buffer: Option<PositiveInteger>,
     pub stencil_buffer: Option<PositiveInteger>,
@@ -86,6 +91,7 @@ pub struct ConfigInfo {
     pub client_api: ConfigClientAPI,
     pub native_renderable: bool,
     pub native_visual_id: Option<EGLint>,
+    pub native_visual_type: Option<EGLint>,
     pub slow_config: bool,
     pub client_api_conformance: ConfigClientAPI,
     pub level: EGLint,
@@ -154,6 +160,11 @@ pub trait ConfigUtils: Sized {
         let value = self.query_attrib(attribute)?;
         Ok(PositiveInteger::try_convert(value)?)
     }
+
+    /// EGL config ID attribute
+    fn config_id(&self) -> ConfigResult<PositiveInteger> {
+        self.query_positive_integer(ConfigAttribute::ConfigID)
+    }
 }
 
 pub trait Color: ConfigUtils {
@@ -192,21 +203,29 @@ pub trait Color: ConfigUtils {
             _ => Err(ConfigError::EnumError)
         }
     }
+
+    /// Sum of color component bit counts.
+    fn color_buffer_size(&self) -> ConfigResult<PositiveInteger> {
+        self.query_positive_integer(ConfigAttribute::BufferSize)
+    }
 }
 
 pub trait AlphaMaskBuffer: ConfigUtils {
+    /// OpenVG alpha mask buffer bit count.
     fn alpha_mask_buffer(&self) -> ConfigResult<Option<PositiveInteger>> {
         self.query_positive_integer_or_zero(ConfigAttribute::AlphaMaskSize)
     }
 }
 
 pub trait DepthBuffer: ConfigUtils {
+    /// OpenGL and OpenGL ES depth buffer bit count.
     fn depth_buffer(&self) -> ConfigResult<Option<PositiveInteger>> {
         self.query_positive_integer_or_zero(ConfigAttribute::DepthSize)
     }
 }
 
 pub trait StencilBuffer: ConfigUtils {
+    /// OpenGL and OpenGL ES stencil buffer bit count.
     fn stencil_buffer(&self) -> ConfigResult<Option<PositiveInteger>> {
         self.query_positive_integer_or_zero(ConfigAttribute::StencilSize)
     }
@@ -214,6 +233,8 @@ pub trait StencilBuffer: ConfigUtils {
 
 pub trait MultisampleBuffer: ConfigUtils {
     /// Returns Ok(Some(sample_count)) if multisample buffer exists.
+    ///
+    /// For more information see EGL 1.4 specification page 18.
     fn multisample_buffer_samples(&self) -> ConfigResult<Option<PositiveInteger>> {
         self.query_positive_integer_or_zero(ConfigAttribute::Samples)
     }
@@ -269,7 +290,15 @@ pub trait NativeRenderable: ConfigUtils {
         }
     }
 
-    // TODO: EGL_NATIVE_VISUAL_TYPE
+    fn native_visual_type(&self) -> ConfigResult<Option<EGLint>> {
+        let value = self.query_attrib(ConfigAttribute::NativeVisualType)?;
+
+        if value as EGLenum == ffi::NONE {
+            Ok(None)
+        } else {
+            Ok(Some(value))
+        }
+    }
 }
 
 pub trait ClientAPI: ConfigUtils {
@@ -356,7 +385,9 @@ pub trait AllAttributes where
 
     fn all(&self) -> Result<ConfigInfo, ConfigError> {
         Ok(ConfigInfo {
+            config_id: self.config_id()?,
             color_buffer: self.color_buffer()?,
+            color_buffer_size: self.color_buffer_size()?,
             alpha_mask_buffer: self.alpha_mask_buffer()?,
             depth_buffer: self.depth_buffer()?,
             stencil_buffer: self.stencil_buffer()?,
@@ -365,6 +396,7 @@ pub trait AllAttributes where
             client_api: self.client_api()?,
             native_renderable: self.native_renderable()?,
             native_visual_id: self.native_visual_id()?,
+            native_visual_type: self.native_visual_type()?,
             slow_config: self.slow_config()?,
             client_api_conformance: self.client_api_conformance()?,
             level: self.level()?,

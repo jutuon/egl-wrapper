@@ -16,6 +16,7 @@ use self::client_api::*;
 
 
 #[derive(Debug)]
+/// Config with reference counted handle to `Display`.
 pub struct DisplayConfig {
     display_handle: Arc<DisplayHandle>,
     raw_config: ffi::types::EGLConfig,
@@ -31,7 +32,7 @@ impl DisplayConfig {
     }
 }
 
-
+/// Config query results.
 pub struct Configs<'a> {
     display: &'a Display,
     raw_configs: Vec<ffi::types::EGLConfig>,
@@ -45,11 +46,13 @@ impl <'a> Configs<'a> {
         }
     }
 
+    /// Query result count.
     pub fn count(&self) -> usize {
         self.raw_configs.len()
     }
 }
 
+/// Iterate config query results.
 pub struct IntoIter<'a> {
     display: &'a Display,
     raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>,
