@@ -18,9 +18,6 @@ use egl_wrapper::display::Display;
 use egl_wrapper::ffi;
 use egl_wrapper::context::{ MakeCurrentSurfaceAndContext };
 
-
-use egl_wrapper::surface::Surface;
-
 #[link(name="X11")]
 extern {}
 
@@ -42,7 +39,7 @@ fn x11() {
         }
 
 
-        let mut display = egl_wrapper::display::Display::from_native_display_type(display_ptr).expect("error");
+        let display = egl_wrapper::display::Display::from_native_display_type(display_ptr).expect("error");
 
         println!("egl: version {:?}", display.version());
 
@@ -85,21 +82,23 @@ fn x11() {
 
         let mut event: xlib::XEvent = mem::zeroed();
 
-        while true {
+        loop {
             xlib::XNextEvent(display_ptr, &mut event);
             if event.type_ == xlib::MapNotify {
                 break;
             }
         }
 
-        let config = {
-            let configs = search_configs(&display);
-            configs.into_iter().next().unwrap().into_display_config()
+
+        let (window_builder, config_opengl) = {
+            let config = search_configs(&display).into_iter().next().unwrap();
+            let window_builder = config.clone().window_surface().unwrap();
+            let opengl_config = config.opengl_context().unwrap();
+            (window_builder, opengl_config)
         };
 
-        let egl_window_surface = display.window_surface_builder(config.clone()).build(window).unwrap();
-
-        let context = display.opengl_context(config).unwrap();
+        let egl_window_surface = window_builder.build(window).unwrap();
+        let context = display.opengl_context(config_opengl).unwrap();
 
         let mut current_context = context.make_current(egl_window_surface).unwrap();
 
@@ -130,100 +129,89 @@ fn x11() {
 }
 
 fn default() {
-    unsafe {
+    use egl_wrapper::config::attribute::*;
 
-        let mut display = egl_wrapper::display::Display::default_display().expect("error");
+    let display = egl_wrapper::display::Display::default_display().expect("error");
 
 
-        // Test querying version information
+    // Test querying version information
 
-        println!("egl: version {:?}", display.version());
+    println!("egl: version {:?}", display.version());
 
-        println!("vendor: {:?}", display.vendor().unwrap());
-        println!("client_apis: {:?}", display.client_apis().unwrap());
-        println!("version: {:?}", display.version_string().unwrap());
+    println!("vendor: {:?}", display.vendor().unwrap());
+    println!("client_apis: {:?}", display.client_apis().unwrap());
+    println!("version: {:?}", display.version_string().unwrap());
 
-        {
-            let extensions = display.extensions().unwrap();
+    {
+        let extensions = display.extensions().unwrap();
 
-            println!("extensions: ");
+        println!("extensions: ");
 
-            for ext in extensions.split_whitespace() {
-                println!("{}", ext);
-            }
+        for ext in extensions.split_whitespace() {
+            println!("{}", ext);
         }
-
-        // Test querying all configs
-
-        {
-            let configs = display.configs().unwrap();
-            println!("config count: {}", configs.count());
-
-            for config in configs.iter() {
-                match config.color_buffer() {
-                    Err(error) => println!("{:?}", error),
-                    _ => (),
-                }
-
-                //println!();
-
-                config.all().unwrap();
-
-            }
-        }
-
-        // Test searching configs
-
-        {
-            let configs = search_configs(&display);
-            println!("config search results count: {}", configs.count());
-
-            for config in configs.iter() {
-                config.all().unwrap();
-            }
-        }
-
-        println!();
-
-        //thread::sleep(Duration::from_secs(2));
     }
+
+    // Test querying all configs
+
+    {
+        let configs = display.configs().unwrap();
+        println!("config count: {}", configs.count());
+
+        for config in configs {
+            match config.color_buffer() {
+                Err(error) => println!("{:?}", error),
+                _ => (),
+            }
+
+            //println!();
+
+            config.all().unwrap();
+
+        }
+    }
+
+    // Test searching configs
+
+    {
+        let configs = search_configs(&display);
+        println!("config search results count: {}", configs.count());
+
+        for config in configs {
+            config.all().unwrap();
+        }
+    }
+
+    println!();
+
+    //thread::sleep(Duration::from_secs(2));
 }
 
 
 fn search_configs<'a>(display: &'a Display) -> Configs<'a> {
-    use egl_wrapper::display::EGLVersion;
-    use egl_wrapper::config::{
-        UnsignedIntegerSearchAttributes,
+    use egl_wrapper::config::attribute:: {
         SurfaceType,
-        RenderableType,
-        EGL14ConfigClientAPI,
-        EGL15ConfigClientAPI,
-        ClientApiConformance,
+        ConfigClientAPI
     };
+
+    use egl_wrapper::config::search:: {
+        UnsignedIntegerSearchAttributes
+    };
+
     use egl_wrapper::utils::UnsignedInteger;
 
-    let mut options = display.config_search_options_builder();
 
-    options.add_unsigned_integer_attribute(
-        UnsignedIntegerSearchAttributes::AlphaSize,
-        Some(UnsignedInteger::new(8))
-    );
+    let mut builder = display.config_search_options_builder();
 
-    let renderable_type = match display.version() {
-        EGLVersion::EGL_1_4 => RenderableType::EGL14(EGL14ConfigClientAPI::OPENGL),
-        EGLVersion::EGL_1_5 => RenderableType::EGL15(EGL15ConfigClientAPI::OPENGL),
-    };
+    builder.add_unsigned_integer_attribute(
+            UnsignedIntegerSearchAttributes::AlphaSize,
+            Some(UnsignedInteger::new(8))
+        )
+        .client_api_conformance(ConfigClientAPI::OPENGL)
+        .client_api(ConfigClientAPI::OPENGL)
+        .surface_type(SurfaceType::WINDOW);
 
-    let client_api_conformance = match display.version() {
-        EGLVersion::EGL_1_4 => ClientApiConformance::EGL14(EGL14ConfigClientAPI::OPENGL),
-        EGLVersion::EGL_1_5 => ClientApiConformance::EGL15(EGL15ConfigClientAPI::OPENGL),
-    };
-
-    options.client_api_conformance(client_api_conformance).unwrap();
-    options.renderable_type(renderable_type).unwrap();
-    options.surface_type(SurfaceType::WINDOW);
-
-    let configs = display.config_search(options.build()).unwrap();
+    let configs = display.config_search(builder.build()).unwrap();
 
     configs
 }
