@@ -102,7 +102,6 @@ pub struct ConfigInfo {
     pub min_swap_interval: UnsignedInteger,
 }
 
-
 #[derive(Debug)]
 pub enum ConfigError {
     QueryError,

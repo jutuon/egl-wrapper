@@ -1,4 +1,6 @@
 
+use std::fmt;
+
 use egl_sys::ffi::types::EGLint;
 use egl_sys::ffi;
 
@@ -26,6 +28,12 @@ impl PositiveInteger {
         } else {
             Err(IntegerError::Negative)
         }
+    }
+}
+
+impl fmt::Display for PositiveInteger {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", self.value())
     }
 }
 
@@ -60,6 +68,13 @@ impl UnsignedInteger {
         } else {
             Err(IntegerError::Negative)
         }
+    }
+}
+
+
+impl fmt::Display for UnsignedInteger {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", self.value())
     }
 }
 
