@@ -92,8 +92,8 @@ fn x11() {
 
         let (window_builder, config_opengl) = {
             let config = search_configs(&display).into_iter().next().unwrap();
-            let window_builder = config.clone().window_surface().unwrap();
-            let opengl_config = config.opengl_context().unwrap();
+            let window_builder = config.clone().window_surface_builder().unwrap();
+            let opengl_config = config.config_opengl().unwrap();
             (window_builder, opengl_config)
         };
 
