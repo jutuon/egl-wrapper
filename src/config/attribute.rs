@@ -125,7 +125,7 @@ pub trait ConfigUtils: Sized {
         let mut value = 0;
 
         let result = unsafe {
-            ffi::GetConfigAttrib(self.display().raw(), self.raw_config(), attribute, &mut value)
+            ffi::GetConfigAttrib(self.display().raw_display(), self.raw_config(), attribute, &mut value)
         };
 
         if result == ffi::FALSE {

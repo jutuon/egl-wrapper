@@ -9,10 +9,9 @@ use std::sync::Arc;
 use egl_sys::{ ffi };
 
 use display::{Display, DisplayHandle};
-
 use surface::WindowSurfaceBuilder;
-use self::attribute::*;
 
+use self::attribute::*;
 use self::client_api::*;
 
 

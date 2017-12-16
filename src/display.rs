@@ -12,7 +12,6 @@ use egl_sys::ffi::types::EGLint;
 use config::{Configs};
 use config::client_api::ConfigOpenGL;
 use config::search::{ ConfigSearchOptions, ConfigSearchOptionsBuilder};
-
 use context::gl::OpenGLContext;
 use context::SingleContext;
 use error::EGLError;
@@ -145,7 +144,7 @@ impl Display {
         Display::new(display_id)
     }
 
-    pub fn raw(&self) -> ffi::types::EGLDisplay {
+    pub fn raw_display(&self) -> ffi::types::EGLDisplay {
         self.display_handle.raw()
     }
 
@@ -171,7 +170,7 @@ impl Display {
 
     fn query_string(&self, name: EGLint) -> Result<Cow<str>, ()> {
         unsafe {
-            let ptr = ffi::QueryString(self.raw(), name);
+            let ptr = ffi::QueryString(self.raw_display(), name);
 
             if ptr.is_null() {
                 return Err(());
@@ -190,7 +189,7 @@ impl Display {
         let mut new_count = 0;
 
         unsafe {
-            let result = ffi::GetConfigs(self.raw(), vec.as_mut_slice().as_mut_ptr(), buf_config_count, &mut new_count);
+            let result = ffi::GetConfigs(self.raw_display(), vec.as_mut_slice().as_mut_ptr(), buf_config_count, &mut new_count);
 
             if result == ffi::FALSE {
                 return Err(());
@@ -210,7 +209,7 @@ impl Display {
         let mut count = 0;
 
         unsafe {
-            let result = ffi::GetConfigs(self.raw(), ptr::null_mut(), 0, &mut count);
+            let result = ffi::GetConfigs(self.raw_display(), ptr::null_mut(), 0, &mut count);
 
             if result == ffi::FALSE {
                 return 0;
@@ -232,7 +231,7 @@ impl Display {
         let mut count = 0;
 
         unsafe {
-            let result = ffi::ChooseConfig(self.raw(), options.attribute_list().ptr(), ptr::null_mut(), 0, &mut count);
+            let result = ffi::ChooseConfig(self.raw_display(), options.attribute_list().ptr(), ptr::null_mut(), 0, &mut count);
 
             if result == ffi::FALSE {
                 return Err(());
@@ -251,7 +250,7 @@ impl Display {
 
         unsafe {
             let result = ffi::ChooseConfig(
-                self.raw(),
+                self.raw_display(),
                 options.attribute_list().ptr(),
                 vec.as_mut_slice().as_mut_ptr(),
                 count,
