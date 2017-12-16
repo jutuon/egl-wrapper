@@ -9,8 +9,10 @@ use std::sync::Arc;
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
-use config::{Configs, ConfigSearchOptionsBuilder, ConfigSearchOptions, DisplayConfig};
-use surface::{WindowSurfaceBuilder};
+use config::{Configs};
+use config::client_api::ConfigOpenGL;
+use config::search::{ ConfigSearchOptions, ConfigSearchOptionsBuilder};
+
 use context::gl::OpenGLContext;
 use context::SingleContext;
 use error::EGLError;
@@ -272,12 +274,8 @@ impl Display {
         Ok(Configs::new(self, vec))
     }
 
-    pub fn window_surface_builder(&self, config: DisplayConfig) -> WindowSurfaceBuilder {
-        WindowSurfaceBuilder::new(config)
-    }
-
-    pub fn opengl_context(self, config: DisplayConfig) -> Result<SingleContext<OpenGLContext>, DisplayError<Option<EGLError>>> {
-        SingleContext::opengl_context(config).map_err(|e| DisplayError::new(self, e))
+    pub fn opengl_context(self, config: ConfigOpenGL) -> Result<SingleContext<OpenGLContext>, DisplayError<Option<EGLError>>> {
+        SingleContext::opengl_context(config.into_display_config()).map_err(|e| DisplayError::new(self, e))
     }
 
     pub(crate) fn display_handle(&self) -> &Arc<DisplayHandle> {
