@@ -8,8 +8,6 @@ use egl_sys::ffi::types::{ EGLint, EGLenum, EGLBoolean };
 use utils::{ PositiveInteger, IntegerError, UnsignedInteger};
 use display::{Display, EGLVersion};
 
-use super::DisplayConfig;
-
 #[derive(Debug)]
 pub enum ColorBuffer {
     RGB(PositiveInteger, PositiveInteger, PositiveInteger),
@@ -67,34 +65,14 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct EGL14ConfigClientAPI: EGLenum {
+    pub struct ConfigClientAPI: EGLenum {
         const OPENGL     = ffi::OPENGL_BIT;
         const OPENGL_ES  = ffi::OPENGL_ES_BIT;
         const OPENGL_ES2 = ffi::OPENGL_ES2_BIT;
-        const OPENVG_BIT = ffi::OPENVG_BIT;
-    }
-}
-
-bitflags! {
-    pub struct EGL15ConfigClientAPI: EGLenum {
-        const OPENGL     = ffi::OPENGL_BIT;
-        const OPENGL_ES  = ffi::OPENGL_ES_BIT;
-        const OPENGL_ES2 = ffi::OPENGL_ES2_BIT;
+        /// Defined only for EGL 1.5
         const OPENGL_ES3 = extensions::OPENGL_ES3_BIT;
         const OPENVG     = ffi::OPENVG_BIT;
     }
-}
-
-#[derive(Debug)]
-pub enum RenderableType {
-    EGL14(EGL14ConfigClientAPI),
-    EGL15(EGL15ConfigClientAPI),
-}
-
-#[derive(Debug)]
-pub enum ClientApiConformance {
-    EGL14(EGL14ConfigClientAPI),
-    EGL15(EGL15ConfigClientAPI),
 }
 
 #[derive(Debug)]
@@ -105,11 +83,11 @@ pub struct ConfigInfo {
     pub stencil_buffer: Option<PositiveInteger>,
     pub multisample_buffer_samples: Option<PositiveInteger>,
     pub surface_type: SurfaceType,
-    pub renderable_type: RenderableType,
+    pub client_api: ConfigClientAPI,
     pub native_renderable: bool,
     pub native_visual_id: Option<EGLint>,
     pub slow_config: bool,
-    pub client_api_conformance: ClientApiConformance,
+    pub client_api_conformance: ConfigClientAPI,
     pub level: EGLint,
     pub transparent_rgb: Option<(UnsignedInteger, UnsignedInteger, UnsignedInteger)>,
     pub max_pbuffer_width_height: (UnsignedInteger, UnsignedInteger),
@@ -294,31 +272,29 @@ pub trait NativeRenderable: ConfigUtils {
     // TODO: EGL_NATIVE_VISUAL_TYPE
 }
 
-pub trait ClientApi: ConfigUtils {
-    fn renderable_type(&self) -> ConfigResult<RenderableType> {
+pub trait ClientAPI: ConfigUtils {
+    fn client_api(&self) -> ConfigResult<ConfigClientAPI> {
         let value = self.query_attrib(ConfigAttribute::RenderableType)?;
 
-        match self.display().version() {
-            EGLVersion::EGL_1_4 => {
-                Ok(RenderableType::EGL14(EGL14ConfigClientAPI::from_bits_truncate(value as EGLenum)))
-            },
-            EGLVersion::EGL_1_5 => {
-                Ok(RenderableType::EGL15(EGL15ConfigClientAPI::from_bits_truncate(value as EGLenum)))
-            },
+        let mut client_api = ConfigClientAPI::from_bits_truncate(value as EGLenum);
+
+        if let EGLVersion::EGL_1_4 = self.display().version() {
+            client_api -= ConfigClientAPI::OPENGL_ES3;
         }
+
+        Ok(client_api)
     }
 
-    fn client_api_conformance(&self) -> ConfigResult<ClientApiConformance> {
+    fn client_api_conformance(&self) -> ConfigResult<ConfigClientAPI> {
         let value = self.query_attrib(ConfigAttribute::Conformant)?;
 
-        match self.display().version() {
-            EGLVersion::EGL_1_4 => {
-                Ok(ClientApiConformance::EGL14(EGL14ConfigClientAPI::from_bits_truncate(value as EGLenum)))
-            },
-            EGLVersion::EGL_1_5 => {
-                Ok(ClientApiConformance::EGL15(EGL15ConfigClientAPI::from_bits_truncate(value as EGLenum)))
-            },
+        let mut client_api = ConfigClientAPI::from_bits_truncate(value as EGLenum);
+
+        if let EGLVersion::EGL_1_4 = self.display().version() {
+            client_api -= ConfigClientAPI::OPENGL_ES3;
         }
+
+        Ok(client_api)
     }
 }
 
@@ -367,7 +343,7 @@ pub trait AllAttributes where
             Color +
             Pbuffer +
             FramebufferLevel +
-            ClientApi +
+            ClientAPI +
             NativeRenderable +
             SlowConfig +
             Surface +
@@ -386,7 +362,7 @@ pub trait AllAttributes where
             stencil_buffer: self.stencil_buffer()?,
             multisample_buffer_samples: self.multisample_buffer_samples()?,
             surface_type: self.surface_type()?,
-            renderable_type: self.renderable_type()?,
+            client_api: self.client_api()?,
             native_renderable: self.native_renderable()?,
             native_visual_id: self.native_visual_id()?,
             slow_config: self.slow_config()?,

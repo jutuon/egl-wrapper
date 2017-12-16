@@ -9,9 +9,8 @@ use display::{ EGLVersion};
 
 
 use super::attribute::{
-    RenderableType,
+    ConfigClientAPI,
     SurfaceType,
-    ClientApiConformance,
 };
 
 pub struct ConfigSearchOptionsBuilder {
@@ -48,52 +47,22 @@ impl ConfigSearchOptionsBuilder {
         self.list_builder.add(ffi::SURFACE_TYPE as EGLint, surface_type.bits() as EGLint);
     }
 
-    /// Returns EGLVersionError if RenderableType does not match current EGL version.
-    pub fn renderable_type(&mut self, renderable_type: RenderableType) -> Result<(), EGLVersionError> {
-        match self.egl_version {
-            EGLVersion::EGL_1_4 => {
-                match renderable_type {
-                    RenderableType::EGL14(value) => {
-                        self.list_builder.add(ffi::RENDERABLE_TYPE as EGLint, value.bits() as EGLint);
-                        Ok(())
-                    }
-                    _ => Err(EGLVersionError),
-                }
-            },
-            EGLVersion::EGL_1_5 => {
-                match renderable_type {
-                    RenderableType::EGL15(value) => {
-                        self.list_builder.add(ffi::RENDERABLE_TYPE as EGLint, value.bits() as EGLint);
-                        Ok(())
-                    }
-                    _ => Err(EGLVersionError),
-                }
-            }
+    /// Removes `ConfigClientAPI::OPENGL_ES3` if EGL version is 1.4
+    pub fn client_api(&mut self, mut client_api: ConfigClientAPI) {
+        if let EGLVersion::EGL_1_4 = self.egl_version {
+            client_api -= ConfigClientAPI::OPENGL_ES3;
         }
+
+        self.list_builder.add(ffi::RENDERABLE_TYPE as EGLint, client_api.bits() as EGLint);
     }
 
-    /// Returns EGLVersionError if ClientApiConformance does not match current EGL version.
-    pub fn client_api_conformance(&mut self, client_api_conformance: ClientApiConformance) -> Result<(), EGLVersionError> {
-        match self.egl_version {
-            EGLVersion::EGL_1_4 => {
-                match client_api_conformance {
-                    ClientApiConformance::EGL14(value) => {
-                        self.list_builder.add(ffi::CONFORMANT as EGLint, value.bits() as EGLint);
-                        Ok(())
-                    }
-                    _ => Err(EGLVersionError),
-                }
-            },
-            EGLVersion::EGL_1_5 => {
-                match client_api_conformance {
-                    ClientApiConformance::EGL15(value) => {
-                        self.list_builder.add(ffi::CONFORMANT as EGLint, value.bits() as EGLint);
-                        Ok(())
-                    }
-                    _ => Err(EGLVersionError),
-                }
-            }
+    /// Removes `ConfigClientAPI::OPENGL_ES3` if EGL version is 1.4
+    pub fn client_api_conformance(&mut self, mut client_api_conformance: ConfigClientAPI) {
+        if let EGLVersion::EGL_1_4 = self.egl_version {
+            client_api_conformance -= ConfigClientAPI::OPENGL_ES3;
         }
+
+        self.list_builder.add(ffi::CONFORMANT as EGLint, client_api_conformance.bits() as EGLint);
     }
 
     // TODO: Implement rest of the EGLConfig searching options
@@ -145,6 +114,3 @@ pub enum IgnoreAttribute {
     MaxPbufferPixels    = ffi::MAX_PBUFFER_PIXELS,
     NativeVisualID      = ffi::NATIVE_VISUAL_ID,
 }
-
-#[derive(Debug)]
-pub struct EGLVersionError;

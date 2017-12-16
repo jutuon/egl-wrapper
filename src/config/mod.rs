@@ -128,7 +128,7 @@ impl <'a> Color             for Config<'a> {}
 impl <'a> AlphaMaskBuffer   for Config<'a> {}
 impl <'a> Pbuffer           for Config<'a> {}
 impl <'a> FramebufferLevel  for Config<'a> {}
-impl <'a> ClientApi         for Config<'a> {}
+impl <'a> ClientAPI         for Config<'a> {}
 impl <'a> NativeRenderable  for Config<'a> {}
 impl <'a> SlowConfig        for Config<'a> {}
 impl <'a> Surface           for Config<'a> {}
