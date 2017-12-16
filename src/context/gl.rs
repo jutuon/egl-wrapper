@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use egl_sys::ffi;
 
-use surface::WindowSurface;
+use surface::window::WindowSurface;
 use context::{ Context, MakeCurrentSurfaceAndContext, RawContextUtils, SingleContext };
 use config::DisplayConfig;
 
