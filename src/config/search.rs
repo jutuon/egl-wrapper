@@ -3,7 +3,7 @@ use egl_sys::{ ffi };
 use egl_sys::ffi::types::{ EGLint };
 
 
-use utils::{ UnsignedInteger, AttributeList, AttributeListBuilder };
+use utils::{ UnsignedInteger, AttributeList, AttributeListBuilder, PositiveInteger };
 use display::{ EGLVersion};
 
 
@@ -13,6 +13,11 @@ use super::attribute::{
     SurfaceType,
 };
 
+/// Set `Config` selection options.
+///
+/// If there is no options specified, EGL will select and sort
+/// `Config`s according to default criteria. See EGL 1.4 specification
+/// for more details.
 pub struct ConfigSearchOptionsBuilder {
     egl_version: EGLVersion,
     list_builder: AttributeListBuilder,
@@ -68,6 +73,12 @@ impl ConfigSearchOptionsBuilder {
         }
 
         self.list_builder.add(ffi::CONFORMANT as EGLint, client_api_conformance.bits() as EGLint);
+        self
+    }
+
+    /// Other attributes are ignored if this is set.
+    pub fn config_id(&mut self, config_id: PositiveInteger) -> &mut Self {
+        self.list_builder.add(ffi::CONFIG_ID as EGLint, config_id.value());
         self
     }
 
