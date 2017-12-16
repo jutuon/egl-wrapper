@@ -30,39 +30,45 @@ impl ConfigSearchOptionsBuilder {
     }
 
     /// If value is None, sets attributes value to `EGL_DONT_CARE`.
-    pub fn add_unsigned_integer_attribute(&mut self, attribute: UnsignedIntegerSearchAttributes, value: Option<UnsignedInteger>) {
+    pub fn add_unsigned_integer_attribute(&mut self, attribute: UnsignedIntegerSearchAttributes, value: Option<UnsignedInteger>) -> &mut Self {
         match value {
             Some(value) => self.list_builder.add(attribute as EGLint, value.value()),
             None => self.list_builder.add(attribute as EGLint, ffi::DONT_CARE),
         }
+
+        self
     }
 
-    pub fn ignore_attribute(&mut self, attribute: IgnoreAttribute) {
-        self.list_builder.add(attribute as EGLint, 0)
+    pub fn ignore_attribute(&mut self, attribute: IgnoreAttribute) -> &mut Self {
+        self.list_builder.add(attribute as EGLint, 0);
+        self
     }
 
     /// If surface doesn't have `Window` bit enabled, then attribute
     /// `EGL_NATIVE_VISUAL_TYPE` is ignored.
-    pub fn surface_type(&mut self, surface_type: SurfaceType) {
+    pub fn surface_type(&mut self, surface_type: SurfaceType) -> &mut Self {
         self.list_builder.add(ffi::SURFACE_TYPE as EGLint, surface_type.bits() as EGLint);
+        self
     }
 
     /// Removes `ConfigClientAPI::OPENGL_ES3` if EGL version is 1.4
-    pub fn client_api(&mut self, mut client_api: ConfigClientAPI) {
+    pub fn client_api(&mut self, mut client_api: ConfigClientAPI) -> &mut Self {
         if let EGLVersion::EGL_1_4 = self.egl_version {
             client_api -= ConfigClientAPI::OPENGL_ES3;
         }
 
         self.list_builder.add(ffi::RENDERABLE_TYPE as EGLint, client_api.bits() as EGLint);
+        self
     }
 
     /// Removes `ConfigClientAPI::OPENGL_ES3` if EGL version is 1.4
-    pub fn client_api_conformance(&mut self, mut client_api_conformance: ConfigClientAPI) {
+    pub fn client_api_conformance(&mut self, mut client_api_conformance: ConfigClientAPI) -> &mut Self {
         if let EGLVersion::EGL_1_4 = self.egl_version {
             client_api_conformance -= ConfigClientAPI::OPENGL_ES3;
         }
 
         self.list_builder.add(ffi::CONFORMANT as EGLint, client_api_conformance.bits() as EGLint);
+        self
     }
 
     // TODO: Implement rest of the EGLConfig searching options
