@@ -10,6 +10,7 @@ use egl_sys::ffi;
 
 use error::EGLError;
 use surface::Surface;
+use utils::UnsignedInteger;
 
 /// Handle multiple contexts.
 pub struct ContextManager {
@@ -98,6 +99,20 @@ impl <S: Surface, C: Context> CurrentSurfaceAndContext<S, C> {
         } else {
             Err(EGLError::check_errors())
         }
+    }
+
+    /// Default value: 1
+    pub fn swap_interval(&mut self, interval: UnsignedInteger) -> Result<(), Option<EGLError>> {
+        let result = unsafe {
+            ffi::SwapInterval(self.context.raw_display(), interval.value())
+        };
+
+        if result == ffi::TRUE {
+            Ok(())
+        } else {
+            Err(EGLError::check_errors())
+        }
+
     }
 }
 
