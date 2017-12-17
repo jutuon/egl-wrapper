@@ -15,7 +15,14 @@ use super::{
     destroy_surface,
 };
 
-use super::attribute::{ RenderBuffer };
+use super::attribute::{
+    RenderBuffer,
+    CommonAttributes,
+    SurfaceAttributeUtils,
+    WindowAttributes,
+    MultisampleResolve,
+    SwapBehavior,
+};
 
 #[derive(Debug)]
 pub struct WindowSurface {
@@ -40,6 +47,13 @@ impl Drop for WindowSurface {
        destroy_surface(self)
     }
 }
+
+impl SurfaceAttributeUtils  for WindowSurface {}
+impl CommonAttributes       for WindowSurface {}
+impl MultisampleResolve     for WindowSurface {}
+impl SwapBehavior           for WindowSurface {}
+
+impl WindowAttributes       for WindowSurface {}
 
 pub struct WindowSurfaceBuilder {
     display_config: DisplayConfig,

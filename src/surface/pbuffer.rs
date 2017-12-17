@@ -5,7 +5,7 @@ use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
 use config::DisplayConfig;
-use utils::{AttributeListBuilder, PositiveInteger, UnsignedInteger};
+use utils::{AttributeListBuilder, UnsignedInteger};
 
 use error::EGLError;
 
@@ -15,9 +15,14 @@ use super::{
 };
 
 use super::attribute::{
-    RenderBuffer,
     TextureFormat,
     TextureTarget,
+    CommonAttributes,
+    SurfaceAttributeUtils,
+    MultisampleResolve,
+    SwapBehavior,
+    Texture,
+    LargestPbuffer,
 };
 
 #[derive(Debug)]
@@ -43,6 +48,14 @@ impl Drop for PbufferSurface {
        destroy_surface(self)
     }
 }
+
+impl SurfaceAttributeUtils  for PbufferSurface {}
+impl CommonAttributes       for PbufferSurface {}
+impl MultisampleResolve     for PbufferSurface {}
+impl SwapBehavior           for PbufferSurface {}
+
+impl Texture                for PbufferSurface {}
+impl LargestPbuffer         for PbufferSurface {}
 
 pub struct PbufferSurfaceBuilder {
     display_config: DisplayConfig,

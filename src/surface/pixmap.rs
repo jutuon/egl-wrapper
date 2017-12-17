@@ -3,7 +3,6 @@
 use std::marker::PhantomData;
 
 use egl_sys::ffi;
-use egl_sys::ffi::types::EGLint;
 
 use config::DisplayConfig;
 use utils::{AttributeListBuilder};
@@ -15,7 +14,13 @@ use super::{
     destroy_surface,
 };
 
-use super::attribute::{ RenderBuffer };
+use super::attribute::{
+    CommonAttributes,
+    SurfaceAttributeUtils,
+    MultisampleResolve,
+    SwapBehavior,
+};
+
 
 #[derive(Debug)]
 pub struct PixmapSurface {
@@ -40,6 +45,12 @@ impl Drop for PixmapSurface {
        destroy_surface(self)
     }
 }
+
+impl SurfaceAttributeUtils  for PixmapSurface {}
+impl CommonAttributes       for PixmapSurface {}
+impl MultisampleResolve     for PixmapSurface {}
+impl SwapBehavior           for PixmapSurface {}
+
 
 pub struct PixmapSurfaceBuilder {
     display_config: DisplayConfig,
