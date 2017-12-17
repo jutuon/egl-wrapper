@@ -6,15 +6,10 @@ pub mod gles;
 pub mod vg;
 
 
-use std::ptr;
-
 use egl_sys::ffi;
 
-use config::DisplayConfig;
 use error::EGLError;
 use surface::Surface;
-
-use self::gl::OpenGLContext;
 
 /// Handle multiple contexts.
 pub struct ContextManager {
@@ -28,17 +23,11 @@ pub struct SingleContext<C: Context> {
     context: C,
 }
 
-impl SingleContext<OpenGLContext> {
-    pub(crate) fn opengl_context(display_config: DisplayConfig) -> Result<SingleContext<OpenGLContext>, Option<EGLError>> {
-        Self::create(OpenGLContext::create(display_config)?)
-    }
-}
-
 impl <C: Context> SingleContext<C> {
-    fn create(context: C) -> Result<SingleContext<C>, Option<EGLError>> {
-        Ok(SingleContext {
+    pub(crate) fn new(context: C) -> SingleContext<C> {
+        SingleContext {
             context,
-        })
+        }
     }
 }
 
@@ -68,29 +57,11 @@ pub(crate) trait RawContextUtils: Context {
             Err(EGLError::check_errors())
         }
     }
-
-    /// This function calls `bind_api` before creating the context.
-    fn create(config: DisplayConfig) -> Result<Self, Option<EGLError>> {
-        Self::bind_api()?;
-
-        let raw_context = unsafe {
-            ffi::CreateContext(config.raw_display(), config.raw_config(), ffi::NO_CONTEXT, ptr::null())
-        };
-
-        if raw_context == ffi::NO_CONTEXT {
-            Err(EGLError::check_errors())
-        } else {
-            Ok(Self::new(config, raw_context))
-        }
-    }
-
-    fn new(display_config: DisplayConfig, raw_context: ffi::types::EGLContext) -> Self;
 }
 
 
 pub trait Context: Sized {
     fn raw_display(&self) -> ffi::types::EGLDisplay;
-
     fn raw_context(&self) -> ffi::types::EGLContext;
 }
 

@@ -4,6 +4,7 @@ use super::DisplayConfig;
 
 macro_rules! config_client_api {
     ( $name: ident ) => {
+        #[derive(Debug, Clone)]
         pub struct $name {
             display_config: DisplayConfig,
         }
@@ -27,3 +28,4 @@ macro_rules! config_client_api {
 }
 
 config_client_api!(ConfigOpenGL);
+config_client_api!(ConfigOpenGLES);

@@ -10,12 +10,15 @@ use egl_sys::{ ffi };
 
 use display::{Display, DisplayHandle};
 use surface::window::WindowSurfaceBuilder;
+use context::gl::OpenGLContextBuilder;
+use context::gles::OpenGLESContextBuilder;
+use context::gles;
 
 use self::attribute::*;
 use self::client_api::*;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Config with reference counted handle to `Display`.
 pub struct DisplayConfig {
     display_handle: Arc<DisplayHandle>,
@@ -112,10 +115,37 @@ impl <'a> Config<'a> {
         }
     }
 
-    pub fn config_opengl(self) -> Option<ConfigOpenGL> {
+    pub fn opengl_context_builder(self) -> Option<OpenGLContextBuilder> {
         match self.client_api() {
             Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => {
-                Some(ConfigOpenGL::new(self.into_display_config()))
+                Some(OpenGLContextBuilder::new(ConfigOpenGL::new(self.into_display_config())))
+            }
+            _ => None
+        }
+    }
+
+    pub fn opengl_es_1_context_builder(self) -> Option<OpenGLESContextBuilder> {
+        match self.client_api() {
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES) => {
+                Some(OpenGLESContextBuilder::new::<gles::Version1>(ConfigOpenGLES::new(self.into_display_config())))
+            }
+            _ => None
+        }
+    }
+
+    pub fn opengl_es_2_context_builder(self) -> Option<OpenGLESContextBuilder> {
+        match self.client_api() {
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES2) => {
+                Some(OpenGLESContextBuilder::new::<gles::Version2>(ConfigOpenGLES::new(self.into_display_config())))
+            }
+            _ => None
+        }
+    }
+
+    pub fn opengl_es_3_context_builder(self) -> Option<OpenGLESContextBuilder> {
+        match self.client_api() {
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES3) => {
+                Some(OpenGLESContextBuilder::new::<gles::Version3>(ConfigOpenGLES::new(self.into_display_config())))
             }
             _ => None
         }

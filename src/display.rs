@@ -12,7 +12,8 @@ use egl_sys::ffi::types::EGLint;
 use config::{Configs};
 use config::client_api::ConfigOpenGL;
 use config::search::{ ConfigSearchOptions, ConfigSearchOptionsBuilder};
-use context::gl::OpenGLContext;
+use context::gl::{ OpenGLContext, OpenGLContextBuilder };
+use context::gles::{ OpenGLESContext, OpenGLESContextBuilder };
 use context::SingleContext;
 use error::EGLError;
 
@@ -273,8 +274,14 @@ impl Display {
         Ok(Configs::new(self, vec))
     }
 
-    pub fn opengl_context(self, config: ConfigOpenGL) -> Result<SingleContext<OpenGLContext>, DisplayError<Option<EGLError>>> {
-        SingleContext::opengl_context(config.into_display_config()).map_err(|e| DisplayError::new(self, e))
+    pub fn build_opengl_context(self, builder: OpenGLContextBuilder) -> Result<SingleContext<OpenGLContext>, DisplayError<Option<EGLError>>> {
+        let context = builder.build().map_err(|e| DisplayError::new(self, e))?;
+        Ok(SingleContext::new(context))
+    }
+
+    pub fn build_opengl_es_context(self, builder: OpenGLESContextBuilder) -> Result<SingleContext<OpenGLESContext>, DisplayError<Option<EGLError>>> {
+        let context = builder.build().map_err(|e| DisplayError::new(self, e))?;
+        Ok(SingleContext::new(context))
     }
 
     pub(crate) fn display_handle(&self) -> &Arc<DisplayHandle> {
