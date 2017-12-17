@@ -90,15 +90,15 @@ fn x11() {
         }
 
 
-        let (window_builder, config_opengl) = {
+        let (window_builder, opengl_context_builder) = {
             let config = search_configs(&display).into_iter().next().unwrap();
             let window_builder = config.clone().window_surface_builder().unwrap();
-            let opengl_config = config.config_opengl().unwrap();
-            (window_builder, opengl_config)
+            let opengl_context_builder = config.opengl_context_builder().unwrap();
+            (window_builder, opengl_context_builder)
         };
 
         let egl_window_surface = window_builder.build(window).unwrap();
-        let context = display.opengl_context(config_opengl).unwrap();
+        let context = display.build_opengl_context(opengl_context_builder).unwrap();
 
         let mut current_context = context.make_current(egl_window_surface).unwrap();
 
@@ -207,8 +207,8 @@ fn search_configs<'a>(display: &'a Display) -> Configs<'a> {
             UnsignedIntegerSearchAttributes::AlphaSize,
             Some(UnsignedInteger::new(8))
         )
-        .client_api_conformance(ConfigClientAPI::OPENGL)
-        .client_api(ConfigClientAPI::OPENGL)
+        .client_api_conformance(ConfigClientAPI::OPENGL | ConfigClientAPI::OPENGL_ES2)
+        .client_api(ConfigClientAPI::OPENGL | ConfigClientAPI::OPENGL_ES2 )
         .surface_type(SurfaceType::WINDOW);
 
     let configs = display.config_search(builder.build()).unwrap();
