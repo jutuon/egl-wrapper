@@ -108,3 +108,20 @@ impl AttributeList {
         self.0.as_slice().as_ptr()
     }
 }
+
+
+#[derive(Debug)]
+pub enum QueryError {
+    QueryError,
+    BooleanError,
+    EnumError,
+    IntegerError(IntegerError),
+}
+
+impl From<IntegerError> for QueryError {
+    fn from(error: IntegerError) -> Self {
+        QueryError::IntegerError(error)
+    }
+}
+
+pub type QueryResult<T> = Result<T, QueryError>;

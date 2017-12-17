@@ -7,9 +7,7 @@ pub mod attribute;
 use egl_sys::ffi;
 
 use config::DisplayConfig;
-
 use error::EGLError;
-
 
 pub trait Surface {
     fn raw_surface(&self) -> ffi::types::EGLSurface;

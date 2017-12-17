@@ -4,7 +4,7 @@
 use egl_sys::{ extensions, ffi };
 use egl_sys::ffi::types::{ EGLint, EGLenum, EGLBoolean };
 
-use utils::{ PositiveInteger, IntegerError, UnsignedInteger};
+use utils::{ PositiveInteger, IntegerError, UnsignedInteger, QueryError};
 use display::{Display, EGLVersion};
 
 /// Color buffer type and bit counts of colors.
@@ -102,21 +102,9 @@ pub struct ConfigInfo {
     pub min_swap_interval: UnsignedInteger,
 }
 
-#[derive(Debug)]
-pub enum ConfigError {
-    QueryError,
-    BooleanError,
-    EnumError,
-    IntegerError(IntegerError),
-}
 
-impl From<IntegerError> for ConfigError {
-    fn from(error: IntegerError) -> Self {
-        ConfigError::IntegerError(error)
-    }
-}
 
-type ConfigResult<T> = Result<T, ConfigError>;
+type ConfigResult<T> = Result<T, QueryError>;
 
 
 pub trait ConfigUtils: Sized {
@@ -134,7 +122,7 @@ pub trait ConfigUtils: Sized {
         };
 
         if result == ffi::FALSE {
-            return Err(ConfigError::QueryError)
+            return Err(QueryError::QueryError)
         }
 
         Ok(value)
@@ -146,7 +134,7 @@ pub trait ConfigUtils: Sized {
         match PositiveInteger::try_convert(value) {
             Ok(value) => Ok(Some(value)),
             Err(IntegerError::Zero) => Ok(None),
-            Err(error) => Err(ConfigError::IntegerError(error)),
+            Err(error) => Err(QueryError::IntegerError(error)),
         }
     }
 
@@ -182,7 +170,7 @@ pub trait Color: ConfigUtils {
                     Ok(alpha) => Ok(ColorBuffer::RGBA(r, g, b, alpha)),
                     Err(IntegerError::Zero) => Ok(ColorBuffer::RGB(r, g, b)),
                     Err(error) => Err(
-                        ConfigError::IntegerError(error)
+                        QueryError::IntegerError(error)
                     ),
                 }
             },
@@ -195,11 +183,11 @@ pub trait Color: ConfigUtils {
                     Ok(alpha) => Ok(ColorBuffer::LuminanceAndAlpha(l, alpha)),
                     Err(IntegerError::Zero) => Ok(ColorBuffer::Luminance(l)),
                     Err(error) => Err(
-                        ConfigError::IntegerError(error)
+                        QueryError::IntegerError(error)
                     ),
                 }
             }
-            _ => Err(ConfigError::EnumError)
+            _ => Err(QueryError::EnumError)
         }
     }
 
@@ -264,7 +252,7 @@ pub trait SlowConfig: ConfigUtils {
         match caveat as EGLenum {
             ffi::SLOW_CONFIG => Ok(true),
             ffi::NONE | ffi::NON_CONFORMANT_CONFIG => Ok(false),
-            _ => Err(ConfigError::EnumError),
+            _ => Err(QueryError::EnumError),
         }
     }
 }
@@ -276,7 +264,7 @@ pub trait NativeRenderable: ConfigUtils {
         match value as EGLBoolean {
             ffi::TRUE => Ok(true),
             ffi::FALSE => Ok(false),
-            _ => Err(ConfigError::BooleanError),
+            _ => Err(QueryError::BooleanError),
         }
     }
 
@@ -347,7 +335,7 @@ pub trait Pbuffer: ConfigUtils {
 }
 
 pub trait TransparentColor: ConfigUtils {
-    fn transparent_rgb(&self) -> Result<Option<(UnsignedInteger, UnsignedInteger, UnsignedInteger)>, ConfigError> {
+    fn transparent_rgb(&self) -> ConfigResult<Option<(UnsignedInteger, UnsignedInteger, UnsignedInteger)>> {
         let transparent_type = self.query_attrib(ConfigAttribute::TransparentType)?;
 
         match transparent_type as EGLenum {
@@ -361,7 +349,7 @@ pub trait TransparentColor: ConfigUtils {
                 Ok(Some((r, g, b)))
             },
             ffi::NONE => Ok(None),
-            _ => Err(ConfigError::EnumError),
+            _ => Err(QueryError::EnumError),
         }
     }
 }
@@ -382,7 +370,7 @@ pub trait AllAttributes where
             StencilBuffer +
             TransparentColor {
 
-    fn all(&self) -> Result<ConfigInfo, ConfigError> {
+    fn all(&self) -> ConfigResult<ConfigInfo> {
         Ok(ConfigInfo {
             config_id: self.config_id()?,
             color_buffer: self.color_buffer()?,
