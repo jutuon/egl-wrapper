@@ -15,6 +15,12 @@ use config::client_api::ConfigOpenGLES;
 use utils::{AttributeListBuilder};
 use error::EGLError;
 
+use super::attribute::{
+    ContextAttributeUtils,
+    CommonAttributes,
+    AttributeOpenGLESVersion,
+};
+
 pub trait ContextVersionGLES {
     fn version_number_attribute() -> EGLint;
 }
@@ -48,6 +54,11 @@ pub struct OpenGLESContext {
     raw_context: ffi::types::EGLContext,
     _marker: PhantomData<ffi::types::EGLContext>,
 }
+
+impl ContextAttributeUtils for OpenGLESContext {}
+impl CommonAttributes      for OpenGLESContext {}
+
+impl AttributeOpenGLESVersion for OpenGLESContext {}
 
 impl Drop for OpenGLESContext {
     fn drop(&mut self) {

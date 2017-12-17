@@ -10,7 +10,6 @@ use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
 use config::{Configs};
-use config::client_api::ConfigOpenGL;
 use config::search::{ ConfigSearchOptions, ConfigSearchOptionsBuilder};
 use context::gl::{ OpenGLContext, OpenGLContextBuilder };
 use context::gles::{ OpenGLESContext, OpenGLESContextBuilder };

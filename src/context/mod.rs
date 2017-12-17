@@ -4,13 +4,14 @@
 pub mod gl;
 pub mod gles;
 pub mod vg;
-
+pub mod attribute;
 
 use egl_sys::ffi;
 
 use error::EGLError;
 use surface::Surface;
-use utils::UnsignedInteger;
+use surface::attribute::RenderBuffer;
+use utils::{ UnsignedInteger, QueryResult, QueryError};
 
 /// Handle multiple contexts.
 pub struct ContextManager {
@@ -113,6 +114,20 @@ impl <S: Surface, C: Context> CurrentSurfaceAndContext<S, C> {
             Err(EGLError::check_errors())
         }
 
+    }
+
+
+}
+
+impl <S: Surface, C: Context + attribute::ContextAttributeUtils> CurrentSurfaceAndContext<S, C> {
+    pub fn render_buffer(&self) -> QueryResult<RenderBuffer> {
+        let value = self.context.query_attribute(attribute::QueryableAttribute::RenderBuffer)?;
+
+        match value as ffi::types::EGLenum {
+            ffi::BACK_BUFFER   => Ok(RenderBuffer::BackBuffer),
+            ffi::SINGLE_BUFFER => Ok(RenderBuffer::SingleBuffer),
+            _ => Err(QueryError::EnumError),
+        }
     }
 }
 

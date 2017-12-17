@@ -19,10 +19,6 @@ macro_rules! config_client_api {
             pub fn display_config(&self) -> &DisplayConfig {
                 &self.display_config
             }
-
-            pub(crate) fn into_display_config(self) -> DisplayConfig {
-                self.display_config
-            }
         }
     };
 }

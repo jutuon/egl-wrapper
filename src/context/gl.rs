@@ -12,12 +12,20 @@ use config::client_api::ConfigOpenGL;
 use utils::{AttributeListBuilder};
 use error::EGLError;
 
+use super::attribute::{
+    ContextAttributeUtils,
+    CommonAttributes,
+};
+
 #[derive(Debug)]
 pub struct OpenGLContext {
     config_opengl: ConfigOpenGL,
     raw_context: ffi::types::EGLContext,
     _marker: PhantomData<ffi::types::EGLContext>,
 }
+
+impl ContextAttributeUtils for OpenGLContext {}
+impl CommonAttributes      for OpenGLContext {}
 
 impl Drop for OpenGLContext {
     fn drop(&mut self) {
