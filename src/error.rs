@@ -35,6 +35,7 @@ impl EGLError {
         let result = result as EGLenum;
 
         let error = match result {
+            // TODO: panic if there is no errors?
             ffi::SUCCESS             => return None,
             ffi::CONTEXT_LOST        => EGLError::ContextLost,
             ffi::NOT_INITIALIZED     => EGLError::NotInitialized,

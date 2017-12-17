@@ -16,7 +16,6 @@ use std::mem;
 use egl_wrapper::config::Configs;
 use egl_wrapper::display::Display;
 use egl_wrapper::ffi;
-use egl_wrapper::context::{ MakeCurrentSurfaceAndContext };
 
 #[link(name="X11")]
 extern {}
@@ -112,7 +111,7 @@ fn x11() {
 
         print_opengl_info();
 
-        current_context.swap_buffers().unwrap();
+        current_context = current_context.swap_buffers().unwrap();
 
         thread::sleep(Duration::from_secs(2));
 
