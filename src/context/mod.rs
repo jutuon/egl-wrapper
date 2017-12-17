@@ -12,38 +12,59 @@ use error::EGLError;
 use surface::Surface;
 use surface::attribute::RenderBuffer;
 use utils::{ UnsignedInteger, QueryResult, QueryError};
-
-/// Handle multiple contexts.
-pub struct ContextManager {
-
-}
-
+use display::Display;
 
 /// Create only one `SingleContext` per Display
 #[derive(Debug)]
 pub struct SingleContext<C: Context> {
+    display: Display,
     context: C,
 }
 
 impl <C: Context> SingleContext<C> {
-    pub(crate) fn new(context: C) -> SingleContext<C> {
+    pub(crate) fn new(context: C, display: Display) -> SingleContext<C> {
         SingleContext {
+            display,
             context,
         }
     }
-}
 
-impl <C: Context> Context for SingleContext<C> {
-    fn raw_display(&self) -> ffi::types::EGLDisplay {
-        self.context.raw_display()
+    pub fn context(&self) -> &C {
+        &self.context
     }
 
-    fn raw_context(&self) -> ffi::types::EGLContext {
-        self.context.raw_context()
+    pub fn display(&self) -> &Display {
+        &self.display
+    }
+
+    pub fn destroy(self) -> Display {
+        self.display
+    }
+
+    // TODO: check that surface will match with context before MakeCurrent function call
+
+    /// This method call also completes deletion of previously dropped Contexts and Surfaces.
+    pub fn make_current<S: Surface>(self, surface: S) -> Result<CurrentSurfaceAndContext<S, C>, ContextOrSurfaceError<S, C>> {
+        let result = unsafe {
+            ffi::MakeCurrent(self.context.raw_display(), surface.raw_surface(), surface.raw_surface(), self.context.raw_context())
+        };
+
+        if result == ffi::TRUE {
+            Ok(CurrentSurfaceAndContext {
+                surface,
+                context: self,
+            })
+        } else {
+            let error = EGLError::check_errors();
+
+            match error {
+                Some(EGLError::ContextLost)     => Err(ContextOrSurfaceError::ContextLost(self.display, surface)),
+                Some(EGLError::BadNativeWindow) => Err(ContextOrSurfaceError::BadNativeWindow(self)),
+                other_error                     => Err(ContextOrSurfaceError::OtherError(self.display, other_error)),
+            }
+        }
     }
 }
-
-impl <S: Surface, C: Context + MakeCurrentSurfaceAndContext<S>> MakeCurrentSurfaceAndContext<S> for SingleContext<C> {}
 
 pub(crate) trait RawContextUtils: Context {
     const API_TYPE: ffi::types::EGLenum;
@@ -67,46 +88,37 @@ pub trait Context: Sized {
     fn raw_context(&self) -> ffi::types::EGLContext;
 }
 
-pub trait MakeCurrentSurfaceAndContext<S: Surface>: Context {
-    /// This method call also completes deletion of previously dropped Contexts and Surfaces.
-    fn make_current(self, surface: S) -> Result<CurrentSurfaceAndContext<S, Self>, MakeCurrentError<S, Self, Option<EGLError>>> {
-        let result = unsafe {
-            ffi::MakeCurrent(self.raw_display(), surface.raw_surface(), surface.raw_surface(), self.raw_context())
-        };
-
-        if result == ffi::TRUE {
-            Ok(CurrentSurfaceAndContext {
-                surface,
-                context: self,
-            })
-        } else {
-            Err(MakeCurrentError::new(surface, self, EGLError::check_errors()))
-        }
-    }
-}
 
 pub struct CurrentSurfaceAndContext<S: Surface, C: Context> {
     surface: S,
-    context: C,
+    context: SingleContext<C>,
 }
 
 impl <S: Surface, C: Context> CurrentSurfaceAndContext<S, C> {
-    pub fn swap_buffers(&mut self) -> Result<(), Option<EGLError>> {
+    pub fn swap_buffers(self) -> Result<Self, ContextOrSurfaceError<S, C>> {
         let result = unsafe {
-            ffi::SwapBuffers(self.context.raw_display(), self.surface.raw_surface())
+            ffi::SwapBuffers(self.context.context().raw_display(), self.surface.raw_surface())
         };
 
         if result == ffi::TRUE {
-            Ok(())
+            Ok(self)
         } else {
-            Err(EGLError::check_errors())
+            let error = EGLError::check_errors();
+
+            match error {
+                Some(EGLError::ContextLost)     => Err(ContextOrSurfaceError::ContextLost(self.context.display, self.surface)),
+                Some(EGLError::BadNativeWindow) => Err(ContextOrSurfaceError::BadNativeWindow(self.context)),
+                other_error                     => Err(ContextOrSurfaceError::OtherError(self.context.display, other_error)),
+            }
         }
     }
 
     /// Default value: 1
+    ///
+    /// Interval value will be clamped between min and max value defined by Config.
     pub fn swap_interval(&mut self, interval: UnsignedInteger) -> Result<(), Option<EGLError>> {
         let result = unsafe {
-            ffi::SwapInterval(self.context.raw_display(), interval.value())
+            ffi::SwapInterval(self.context.context().raw_display(), interval.value())
         };
 
         if result == ffi::TRUE {
@@ -122,7 +134,7 @@ impl <S: Surface, C: Context> CurrentSurfaceAndContext<S, C> {
 
 impl <S: Surface, C: Context + attribute::ContextAttributeUtils> CurrentSurfaceAndContext<S, C> {
     pub fn render_buffer(&self) -> QueryResult<RenderBuffer> {
-        let value = self.context.query_attribute(attribute::QueryableAttribute::RenderBuffer)?;
+        let value = self.context.context().query_attribute(attribute::QueryableAttribute::RenderBuffer)?;
 
         match value as ffi::types::EGLenum {
             ffi::BACK_BUFFER   => Ok(RenderBuffer::BackBuffer),
@@ -143,20 +155,9 @@ pub(self) fn destroy_context(raw_display: ffi::types::EGLDisplay, raw_context: f
     }
 }
 
-/// Return ownership of context and surface if there is an error.
 #[derive(Debug)]
-pub struct MakeCurrentError<S: Surface, C: Context, E> {
-    pub surface: S,
-    pub context: C,
-    pub error: E,
-}
-
-impl <S: Surface, C: Context, E> MakeCurrentError<S, C, E> {
-    fn new(surface: S, context: C, error: E) -> MakeCurrentError<S, C, E> {
-        MakeCurrentError {
-            surface,
-            context,
-            error,
-        }
-    }
+pub enum ContextOrSurfaceError<S: Surface, C: Context> {
+    ContextLost(Display, S),
+    BadNativeWindow(SingleContext<C>),
+    OtherError(Display, Option<EGLError>),
 }

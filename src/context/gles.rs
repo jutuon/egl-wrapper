@@ -9,8 +9,7 @@ use std::marker::PhantomData;
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
-use surface::window::WindowSurface;
-use context::{ Context, MakeCurrentSurfaceAndContext, RawContextUtils, SingleContext };
+use context::{ Context, RawContextUtils };
 use config::client_api::ConfigOpenGLES;
 use utils::{AttributeListBuilder};
 use error::EGLError;
@@ -79,9 +78,6 @@ impl Context for OpenGLESContext {
         self.raw_context
     }
 }
-
-impl MakeCurrentSurfaceAndContext<WindowSurface> for SingleContext<OpenGLESContext> {}
-
 
 pub struct OpenGLESContextBuilder {
     config_opengl: ConfigOpenGLES,

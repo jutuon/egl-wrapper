@@ -277,13 +277,17 @@ impl Display {
     }
 
     pub fn build_opengl_context(self, builder: OpenGLContextBuilder) -> Result<SingleContext<OpenGLContext>, DisplayError<Option<EGLError>>> {
-        let context = builder.build().map_err(|e| DisplayError::new(self, e))?;
-        Ok(SingleContext::new(context))
+        match builder.build() {
+            Ok(context) => Ok(SingleContext::new(context, self)),
+            Err(error) => Err(DisplayError::new(self, error)),
+        }
     }
 
     pub fn build_opengl_es_context(self, builder: OpenGLESContextBuilder) -> Result<SingleContext<OpenGLESContext>, DisplayError<Option<EGLError>>> {
-        let context = builder.build().map_err(|e| DisplayError::new(self, e))?;
-        Ok(SingleContext::new(context))
+        match builder.build() {
+            Ok(context) => Ok(SingleContext::new(context, self)),
+            Err(error) => Err(DisplayError::new(self, error)),
+        }
     }
 
     pub(crate) fn display_handle(&self) -> &Arc<DisplayHandle> {

@@ -6,8 +6,7 @@ use std::marker::PhantomData;
 
 use egl_sys::ffi;
 
-use surface::window::WindowSurface;
-use context::{ Context, MakeCurrentSurfaceAndContext, RawContextUtils, SingleContext };
+use context::{ Context, RawContextUtils };
 use config::client_api::ConfigOpenGL;
 use utils::{AttributeListBuilder};
 use error::EGLError;
@@ -46,9 +45,6 @@ impl Context for OpenGLContext {
         self.raw_context
     }
 }
-
-impl MakeCurrentSurfaceAndContext<WindowSurface> for SingleContext<OpenGLContext> {}
-
 
 pub struct OpenGLContextBuilder {
     config_opengl: ConfigOpenGL,
