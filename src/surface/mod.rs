@@ -23,6 +23,4 @@ fn destroy_surface<S: Surface>(surface: &mut S) {
         let error = EGLError::check_errors();
         eprintln!("egl_wrapper: couldn't destroy surface, error: {:?}", error);
     }
-
-    // TODO: eglReleaseThread
 }

@@ -75,10 +75,13 @@ impl Drop for DisplayHandle {
             eprintln!("egl_wrapper: eglTerminate returned false");
         }
 
-        // TODO: call eglReleaseThread
+        let result = unsafe {
+            ffi::ReleaseThread()
+        };
 
-        // TODO: Make sure that there is no current contexts when Display is
-        //       dropped.
+        if result == ffi::FALSE {
+            eprintln!("egl_wrapper: eglReleaseThread returned false");
+        }
     }
 }
 

@@ -68,6 +68,7 @@ pub trait Context: Sized {
 }
 
 pub trait MakeCurrentSurfaceAndContext<S: Surface>: Context {
+    /// This method call also completes deletion of previously dropped Contexts and Surfaces.
     fn make_current(self, surface: S) -> Result<CurrentSurfaceAndContext<S, Self>, MakeCurrentError<S, Self, Option<EGLError>>> {
         let result = unsafe {
             ffi::MakeCurrent(self.raw_display(), surface.raw_surface(), surface.raw_surface(), self.raw_context())
@@ -140,8 +141,6 @@ pub(self) fn destroy_context(raw_display: ffi::types::EGLDisplay, raw_context: f
     if result == ffi::FALSE {
         eprintln!("egl_wrapper: couldn't destroy context");
     }
-
-    // TODO: eglReleaseThread
 }
 
 /// Return ownership of context and surface if there is an error.
