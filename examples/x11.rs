@@ -7,7 +7,7 @@ extern crate x11;
 use x11::xlib;
 
 use std::os::raw;
-use std::ffi::{CString, CStr};
+use std::ffi::{CStr};
 use std::ptr::null;
 use std::thread;
 use std::time::Duration;
@@ -15,7 +15,6 @@ use std::mem;
 
 use egl_wrapper::config::Configs;
 use egl_wrapper::display::Display;
-use egl_wrapper::ffi;
 
 #[link(name="X11")]
 extern {}
@@ -41,6 +40,21 @@ fn x11() {
         let display = egl_wrapper::display::Display::from_native_display_type(display_ptr).expect("error");
 
         println!("egl: version {:?}", display.version());
+
+        let client_api_support = display.client_api_support().unwrap();
+
+        if !client_api_support.opengl && !client_api_support.opengl_es {
+            println!("OpenGL or OpenGL ES support is required");
+            drop(display);
+
+            let result = xlib::XCloseDisplay(display_ptr);
+
+            if result != 0 {
+                println!("x11 display close error");
+            }
+
+            return
+        }
 
         let mut window_attributes = xlib::XSetWindowAttributes {
             background_pixmap: 0,
@@ -101,10 +115,12 @@ fn x11() {
 
         let mut current_context = context.make_current(egl_window_surface).unwrap();
 
-        gl::load_with(|s| {
-            let c_string = CString::new(s);
-            ffi::GetProcAddress(c_string.unwrap().as_ptr()) as *const raw::c_void
-        });
+        {
+            let function_loader = current_context.context().display().function_loader().unwrap();
+            gl::load_with(|s| {
+                function_loader.get_proc_address(s).unwrap()
+            });
+        }
 
         gl::ClearColor(0.0, 0.5, 0.8, 0.0);
         gl::Clear(gl::COLOR_BUFFER_BIT);

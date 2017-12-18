@@ -129,7 +129,9 @@ impl <S: Surface, C: Context> CurrentSurfaceAndContext<S, C> {
 
     }
 
-
+    pub fn context(&self) -> &SingleContext<C> {
+        &self.context
+    }
 }
 
 impl <S: Surface, C: Context + attribute::ContextAttributeUtils> CurrentSurfaceAndContext<S, C> {

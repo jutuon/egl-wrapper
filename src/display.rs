@@ -1,10 +1,12 @@
 
 
-use std::ffi::CStr;
+use std::ffi::{ CStr, CString, NulError };
 use std::ptr;
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use std::mem;
+use std::os;
 
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
@@ -15,6 +17,64 @@ use context::gl::{ OpenGLContext, OpenGLContextBuilder };
 use context::gles::{ OpenGLESContext, OpenGLESContextBuilder };
 use context::SingleContext;
 use error::EGLError;
+
+#[derive(Debug)]
+struct ExtensionSupport {
+    get_all_proc_addresses: bool,
+}
+
+impl ExtensionSupport {
+    fn new() -> ExtensionSupport {
+        ExtensionSupport {
+            get_all_proc_addresses: false,
+        }
+    }
+
+    fn parse(extensions: &str) -> ExtensionSupport {
+        let mut extension_support = ExtensionSupport::new();
+
+        for ext in extensions.split_whitespace() {
+            match ext {
+                "EGL_KHR_get_all_proc_addresses" => extension_support.get_all_proc_addresses = true,
+                _ => (),
+            }
+        }
+
+        extension_support
+    }
+}
+
+#[derive(Debug)]
+pub struct ClientApiSupport {
+    pub opengl: bool,
+    pub opengl_es: bool,
+    pub openvg: bool,
+}
+
+impl ClientApiSupport {
+    fn new() -> ClientApiSupport {
+        ClientApiSupport {
+            opengl: false,
+            opengl_es: false,
+            openvg: false,
+        }
+    }
+    fn parse(client_apis: &str) -> ClientApiSupport {
+        let mut api_support = ClientApiSupport::new();
+
+        for api in client_apis.split_whitespace() {
+            match api {
+                "OpenGL" => api_support.opengl = true,
+                "OpenGL_ES" => api_support.opengl_es = true,
+                "OpenVG" => api_support.openvg = true,
+                _ => (),
+            }
+        }
+
+        api_support
+    }
+}
+
 
 #[derive(Debug)]
 pub enum DisplayCreationError {
@@ -91,6 +151,7 @@ impl Drop for DisplayHandle {
 /// EGLDisplay with initialized EGL
 #[derive(Debug)]
 pub struct Display {
+    extension_support: ExtensionSupport,
     egl_version: EGLVersion,
     display_handle: Arc<DisplayHandle>,
 }
@@ -118,16 +179,33 @@ impl Display {
         }
 
         let version = EGLVersion::parse(version_major, version_minor);
+        let extension_support = ExtensionSupport::new();
 
         match version {
             Some(version) => {
-                Ok(Display {
+                let mut display = Display {
+                    extension_support,
                     egl_version: version,
                     display_handle: DisplayHandle::new_in_arc(raw_display),
-                })
+                };
+
+                let parsed_extensions = match display.extensions() {
+                    Ok(text) => Some(ExtensionSupport::parse(&text)),
+                    Err(())  => None,
+                };
+
+                if let Some(ext) = parsed_extensions {
+                    mem::replace(&mut display.extension_support, ext);
+                }
+
+                Ok(display)
             },
             None => {
+                // Could not parse version so lets just destroy EGLDisplay and
+                // return error.
+
                 let display = Display {
+                    extension_support,
                     egl_version: EGLVersion::EGL_1_4,
                     display_handle: DisplayHandle::new_in_arc(raw_display),
                 };
@@ -293,6 +371,27 @@ impl Display {
     pub(crate) fn display_handle(&self) -> &Arc<DisplayHandle> {
         &self.display_handle
     }
+
+    pub fn extension_function_loader(&self) -> ExtensionFunctionLoader {
+        ExtensionFunctionLoader {
+            _display: self,
+        }
+    }
+
+    /// Returns `Some(function_loader)` if EGL extension
+    /// `EGL_KHR_get_all_proc_addresses` is supported.
+    pub fn function_loader(&self) -> Option<FunctionLoader> {
+        match self.extension_support.get_all_proc_addresses {
+            true => Some(FunctionLoader {
+                _display: self
+            }),
+            false => None,
+        }
+    }
+
+    pub fn client_api_support(&self) -> Result<ClientApiSupport, ()> {
+        Ok(ClientApiSupport::parse(&self.client_apis()?))
+    }
 }
 
 /// Return ownership of Display back if error occurred.
@@ -308,5 +407,43 @@ impl <E> DisplayError<E>  {
             display,
             error,
         }
+    }
+}
+
+
+/// Load client API and EGL extension function pointers
+pub struct ExtensionFunctionLoader<'a> {
+    _display: &'a Display,
+}
+
+impl <'a> ExtensionFunctionLoader<'a> {
+    /// A non null value does not guarantee existence of the extension function.
+    pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
+        get_proc_address(name)
+    }
+}
+
+/// Load client API and EGL function pointers.
+/// Supports all functions, not only extensions functions.
+pub struct FunctionLoader<'a> {
+    _display: &'a Display,
+}
+
+impl <'a> FunctionLoader<'a> {
+    /// A non null value does not guarantee existence of the function.
+    pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
+        get_proc_address(name)
+    }
+}
+
+
+fn get_proc_address(name: &str) -> Result<*const os::raw::c_void, NulError> {
+    let c_string = match CString::new(name) {
+        Ok(s) => s,
+        Err(error) => return Err(error),
+    };
+
+    unsafe {
+        Ok(ffi::GetProcAddress(c_string.as_ptr()) as *const os::raw::c_void)
     }
 }
