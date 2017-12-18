@@ -107,8 +107,6 @@ bitflags! {
     }
 }
 
-// TODO: EGL_KHR_create_context debug context flag for OpenGL ES
-
 /// EGL_KHR_create_context
 #[derive(Debug)]
 #[repr(u32)]

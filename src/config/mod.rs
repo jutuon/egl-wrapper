@@ -11,8 +11,7 @@ use egl_sys::{ ffi };
 use display::{Display, DisplayHandle};
 use surface::window::WindowSurfaceBuilder;
 use context::gl::{ OpenGLContextBuilder, OpenGLContextBuilderEXT };
-use context::gles::OpenGLESContextBuilder;
-use context::gles;
+use context::gles::{ OpenGLESContextBuilder, OpenGLESContextBuilderEXT, EGL14OpenGLESVersion, OpenGLESMajorVersionEXT };
 
 use self::attribute::*;
 use self::client_api::*;
@@ -139,31 +138,38 @@ impl <'a> Config<'a> {
         }
     }
 
-    pub fn opengl_es_1_context_builder(self) -> Option<OpenGLESContextBuilder> {
-        match self.client_api() {
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES) => {
-                Some(OpenGLESContextBuilder::new::<gles::Version1>(ConfigOpenGLES::new(self.into_display_config())))
+    pub fn opengl_es_context_builder(self, version: EGL14OpenGLESVersion) -> Option<OpenGLESContextBuilder> {
+        let mut builder = match self.client_api() {
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES) && version == EGL14OpenGLESVersion::Version1 => {
+                OpenGLESContextBuilder::new(ConfigOpenGLES::new(self.into_display_config()))
+            },
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES2) && version == EGL14OpenGLESVersion::Version2 => {
+                OpenGLESContextBuilder::new(ConfigOpenGLES::new(self.into_display_config()))
             }
-            _ => None
-        }
+            _ => return None,
+        };
+
+        builder.set_context_client_version(version);
+        Some(builder)
     }
 
-    pub fn opengl_es_2_context_builder(self) -> Option<OpenGLESContextBuilder> {
-        match self.client_api() {
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES2) => {
-                Some(OpenGLESContextBuilder::new::<gles::Version2>(ConfigOpenGLES::new(self.into_display_config())))
+    /// EGL_KHR_create_context
+    pub fn opengl_es_context_builder_ext(self, version: OpenGLESMajorVersionEXT) -> Option<OpenGLESContextBuilderEXT> {
+        let mut builder = match self.client_api() {
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES) && version == OpenGLESMajorVersionEXT::Version1 => {
+                OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
+            },
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES2) && version == OpenGLESMajorVersionEXT::Version2 => {
+                OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
+            },
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES3) && version == OpenGLESMajorVersionEXT::Version3 => {
+                OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
             }
-            _ => None
-        }
-    }
+            _ => return None,
+        };
 
-    pub fn opengl_es_3_context_builder(self) -> Option<OpenGLESContextBuilder> {
-        match self.client_api() {
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES3) => {
-                Some(OpenGLESContextBuilder::new::<gles::Version3>(ConfigOpenGLES::new(self.into_display_config())))
-            }
-            _ => None
-        }
+        builder.set_major_version(version);
+        Some(builder)
     }
 }
 

@@ -14,7 +14,7 @@ use egl_sys::ffi::types::EGLint;
 use config::{Configs};
 use config::search::{ ConfigSearchOptions, ConfigSearchOptionsBuilder};
 use context::gl::{ OpenGLContext, OpenGLContextBuilder, OpenGLContextBuilderEXT, OpenGLContextEXT };
-use context::gles::{ OpenGLESContext, OpenGLESContextBuilder };
+use context::gles::{ OpenGLESContext, OpenGLESContextBuilder, OpenGLESContextBuilderEXT };
 use context::SingleContext;
 use error::EGLError;
 
@@ -377,6 +377,14 @@ impl Display {
     }
 
     pub fn build_opengl_es_context(self, builder: OpenGLESContextBuilder) -> Result<SingleContext<OpenGLESContext>, DisplayError<Option<EGLError>>> {
+        match builder.build() {
+            Ok(context) => Ok(SingleContext::new(context, self)),
+            Err(error) => Err(DisplayError::new(self, error)),
+        }
+    }
+
+    /// Extension EGL_KHR_create_context
+    pub fn build_opengl_es_context_ext(self, builder: OpenGLESContextBuilderEXT) -> Result<SingleContext<OpenGLESContext>, DisplayError<Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
             Err(error) => Err(DisplayError::new(self, error)),

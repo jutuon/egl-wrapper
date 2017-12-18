@@ -8,10 +8,11 @@ use std::marker::PhantomData;
 
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
+use egl_sys::extensions;
 
 use context::{ Context, RawContextUtils };
 use config::client_api::ConfigOpenGLES;
-use utils::{AttributeListBuilder};
+use utils::{AttributeListBuilder, UnsignedInteger};
 use error::EGLError;
 
 use super::attribute::{
@@ -20,30 +21,20 @@ use super::attribute::{
     AttributeOpenGLESVersion,
 };
 
-pub trait ContextVersionGLES {
-    fn version_number_attribute() -> EGLint;
+#[derive(Debug, PartialEq)]
+#[repr(u32)]
+pub enum EGL14OpenGLESVersion {
+    Version1 = 1,
+    Version2 = 2,
 }
 
-pub struct Version1;
-pub struct Version2;
-pub struct Version3;
-
-impl ContextVersionGLES for Version1 {
-    fn version_number_attribute() -> EGLint {
-        1
-    }
-}
-
-impl ContextVersionGLES for Version2 {
-    fn version_number_attribute() -> EGLint {
-        2
-    }
-}
-
-impl ContextVersionGLES for Version3 {
-    fn version_number_attribute() -> EGLint {
-        3
-    }
+#[derive(Debug, PartialEq)]
+#[repr(u32)]
+/// EGL_KHR_create_context
+pub enum OpenGLESMajorVersionEXT {
+    Version1 = 1,
+    Version2 = 2,
+    Version3 = 3,
 }
 
 
@@ -85,15 +76,16 @@ pub struct OpenGLESContextBuilder {
 }
 
 impl OpenGLESContextBuilder {
-    pub(crate) fn new<T: ContextVersionGLES>(config_opengl: ConfigOpenGLES) -> OpenGLESContextBuilder {
-        let mut builder = OpenGLESContextBuilder {
+    pub(crate) fn new(config_opengl: ConfigOpenGLES) -> OpenGLESContextBuilder {
+        OpenGLESContextBuilder {
             config_opengl,
             attributes: AttributeListBuilder::new(),
-        };
+        }
+    }
 
-        builder.attributes.add(ffi::CONTEXT_CLIENT_VERSION as EGLint, T::version_number_attribute());
-
-        builder
+    /// Default value: 1
+    pub(crate) fn set_context_client_version(&mut self, version: EGL14OpenGLESVersion) {
+        self.attributes.add(ffi::CONTEXT_CLIENT_VERSION as EGLint, version as EGLint);
     }
 
     /// This function calls `bind_api` before creating the context.
@@ -125,5 +117,39 @@ impl OpenGLESContextBuilder {
     }
 }
 
+// EGL_KHR_create_context extension implementation
 
-// TODO: EGL_KHR_create_context extension, OpenGL ES 1.1 context request
+
+pub struct OpenGLESContextBuilderEXT(OpenGLESContextBuilder);
+
+impl OpenGLESContextBuilderEXT {
+    pub(crate) fn new(config_opengl: ConfigOpenGLES) -> OpenGLESContextBuilderEXT {
+        OpenGLESContextBuilderEXT(OpenGLESContextBuilder::new(config_opengl))
+    }
+
+    /// Default value: `OpenGLESMajorVersionEXT::Version1`
+    pub(crate) fn set_major_version(&mut self, major: OpenGLESMajorVersionEXT) {
+        self.0.attributes.add(extensions::CONTEXT_MAJOR_VERSION_KHR as EGLint, major as EGLint);
+    }
+
+    /// Default value: 0
+    pub fn set_minor_version(&mut self, minor: UnsignedInteger) {
+        self.0.attributes.add(extensions::CONTEXT_MINOR_VERSION_KHR as EGLint, minor.value());
+    }
+
+    /// Default value: false
+    pub fn enable_debug_context(&mut self, debug: bool) {
+        let value = if debug {
+            extensions::CONTEXT_OPENGL_DEBUG_BIT_KHR as EGLint
+        } else {
+            0
+        };
+
+        self.0.attributes.add(extensions::CONTEXT_FLAGS_KHR as EGLint, value);
+    }
+
+    /// This function calls `bind_api` before creating the context.
+    pub(crate) fn build(self) -> Result<OpenGLESContext, Option<EGLError>> {
+        self.0.build()
+    }
+}
