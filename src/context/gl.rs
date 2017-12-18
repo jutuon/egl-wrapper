@@ -95,23 +95,6 @@ impl OpenGLContextBuilder {
 
 // EGL_KHR_create_context extension implementation
 
-/// OpenGL context with EGL_KHR_create_context extension attributes.
-#[derive(Debug)]
-pub struct OpenGLContextEXT(OpenGLContext);
-
-impl Context for OpenGLContextEXT {
-    fn raw_display(&self) -> ffi::types::EGLDisplay {
-        self.0.raw_display()
-    }
-
-    fn raw_context(&self) -> ffi::types::EGLContext {
-        self.0.raw_context()
-    }
-}
-
-impl ContextAttributeUtils for OpenGLContextEXT {}
-impl CommonAttributes      for OpenGLContextEXT {}
-
 /// OpenGL context builder with EGL_KHR_create_context extension attributes.
 pub struct OpenGLContextBuilderEXT {
     builder: OpenGLContextBuilder,
@@ -154,7 +137,7 @@ impl OpenGLContextBuilderEXT {
     }
 
     /// This function calls `bind_api` before creating the context.
-    pub(crate) fn build(self) -> Result<OpenGLContextEXT, Option<EGLError>> {
-        Ok(OpenGLContextEXT(self.builder.build()?))
+    pub(crate) fn build(self) -> Result<OpenGLContext, Option<EGLError>> {
+        self.builder.build()
     }
 }
