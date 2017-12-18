@@ -10,7 +10,7 @@ use egl_sys::{ ffi };
 
 use display::{Display, DisplayHandle};
 use surface::window::WindowSurfaceBuilder;
-use context::gl::OpenGLContextBuilder;
+use context::gl::{ OpenGLContextBuilder, OpenGLContextBuilderEXT };
 use context::gles::OpenGLESContextBuilder;
 use context::gles;
 
@@ -119,6 +119,21 @@ impl <'a> Config<'a> {
         match self.client_api() {
             Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => {
                 Some(OpenGLContextBuilder::new(ConfigOpenGL::new(self.into_display_config())))
+            }
+            _ => None
+        }
+    }
+
+    /// Returns None if extension EGL_KHR_create_context is not supported or
+    /// config does not support OpengGL.
+    pub fn opengl_context_builder_ext(self) -> Option<OpenGLContextBuilderEXT> {
+        if !self.display.extension_support().create_context() {
+            return None;
+        }
+
+        match self.client_api() {
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => {
+                Some(OpenGLContextBuilderEXT::new(ConfigOpenGL::new(self.into_display_config())))
             }
             _ => None
         }

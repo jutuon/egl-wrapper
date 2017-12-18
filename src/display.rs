@@ -13,20 +13,22 @@ use egl_sys::ffi::types::EGLint;
 
 use config::{Configs};
 use config::search::{ ConfigSearchOptions, ConfigSearchOptionsBuilder};
-use context::gl::{ OpenGLContext, OpenGLContextBuilder };
+use context::gl::{ OpenGLContext, OpenGLContextBuilder, OpenGLContextBuilderEXT, OpenGLContextEXT };
 use context::gles::{ OpenGLESContext, OpenGLESContextBuilder };
 use context::SingleContext;
 use error::EGLError;
 
 #[derive(Debug)]
-struct ExtensionSupport {
+pub(crate) struct ExtensionSupport {
     get_all_proc_addresses: bool,
+    create_context: bool,
 }
 
 impl ExtensionSupport {
     fn new() -> ExtensionSupport {
         ExtensionSupport {
             get_all_proc_addresses: false,
+            create_context: false,
         }
     }
 
@@ -36,11 +38,16 @@ impl ExtensionSupport {
         for ext in extensions.split_whitespace() {
             match ext {
                 "EGL_KHR_get_all_proc_addresses" => extension_support.get_all_proc_addresses = true,
+                "EGL_KHR_create_context" => extension_support.create_context = true,
                 _ => (),
             }
         }
 
         extension_support
+    }
+
+    pub fn create_context(&self) -> bool {
+        self.create_context
     }
 }
 
@@ -361,6 +368,14 @@ impl Display {
         }
     }
 
+    /// Extension EGL_KHR_create_context
+    pub fn build_opengl_context_ext(self, builder: OpenGLContextBuilderEXT) -> Result<SingleContext<OpenGLContextEXT>, DisplayError<Option<EGLError>>> {
+        match builder.build() {
+            Ok(context) => Ok(SingleContext::new(context, self)),
+            Err(error) => Err(DisplayError::new(self, error)),
+        }
+    }
+
     pub fn build_opengl_es_context(self, builder: OpenGLESContextBuilder) -> Result<SingleContext<OpenGLESContext>, DisplayError<Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
@@ -392,6 +407,10 @@ impl Display {
     pub fn client_api_support(&self) -> Result<ClientApiSupport, ()> {
         Ok(ClientApiSupport::parse(&self.client_apis()?))
     }
+
+    pub(crate) fn extension_support(&self) -> &ExtensionSupport {
+        &self.extension_support
+    }
 }
 
 /// Return ownership of Display back if error occurred.
@@ -417,6 +436,7 @@ pub struct ExtensionFunctionLoader<'a> {
 }
 
 impl <'a> ExtensionFunctionLoader<'a> {
+    /// If null is returned the function does not exists.
     /// A non null value does not guarantee existence of the extension function.
     pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
         get_proc_address(name)
@@ -430,6 +450,7 @@ pub struct FunctionLoader<'a> {
 }
 
 impl <'a> FunctionLoader<'a> {
+    /// If null is returned the function does not exists.
     /// A non null value does not guarantee existence of the function.
     pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
         get_proc_address(name)

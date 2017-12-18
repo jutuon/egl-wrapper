@@ -1,6 +1,7 @@
 
 use egl_sys::ffi;
 use egl_sys::ffi::types::{ EGLint, EGLenum };
+use egl_sys::extensions;
 
 use utils::{UnsignedInteger, PositiveInteger, QueryError, QueryResult};
 
@@ -82,3 +83,36 @@ pub trait AttributeOpenGLESVersion: ContextAttributeUtils {
     }
 }
 
+// EGL_KHR_create_context extension implementation
+
+/// EGL_KHR_create_context
+#[derive(Debug)]
+#[repr(u32)]
+pub enum OpenGLContextProfile {
+    Core        = extensions::CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
+    Compability = extensions::CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT_KHR,
+}
+
+
+
+bitflags! {
+    /// EGL_KHR_create_context
+    pub struct OpenGLContextFlags: EGLenum {
+        const DEBUG              = extensions::CONTEXT_OPENGL_DEBUG_BIT_KHR;
+
+        /// Only for OpenGL 3.0 or later.
+        const FORWARD_COMPATIBLE = extensions::CONTEXT_OPENGL_FORWARD_COMPATIBLE_BIT_KHR;
+
+        const ROBUST_ACCESS      = extensions::CONTEXT_OPENGL_ROBUST_ACCESS_BIT_KHR;
+    }
+}
+
+// TODO: EGL_KHR_create_context debug context flag for OpenGL ES
+
+/// EGL_KHR_create_context
+#[derive(Debug)]
+#[repr(u32)]
+pub enum ResetNotificationStrategy {
+    NoResetNotification = extensions::NO_RESET_NOTIFICATION_KHR,
+    LoseContextOnReset  = extensions::LOSE_CONTEXT_ON_RESET_KHR,
+}
