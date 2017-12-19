@@ -18,7 +18,7 @@ use context::gles::{ OpenGLESContext, OpenGLESContextBuilder, OpenGLESContextBui
 use context::SingleContext;
 use error::EGLError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct ExtensionSupport {
     get_all_proc_addresses: bool,
     create_context: bool,
@@ -312,7 +312,7 @@ impl Display {
     }
 
     pub fn config_search_options_builder(&self) -> ConfigSearchOptionsBuilder {
-        ConfigSearchOptionsBuilder::new(self.egl_version)
+        ConfigSearchOptionsBuilder::new(self.egl_version, self.extension_support.clone())
     }
 
     pub fn config_search<'a>(&'a self, options: ConfigSearchOptions) -> Result<Configs<'a>, ()> {

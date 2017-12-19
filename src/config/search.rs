@@ -4,7 +4,7 @@ use egl_sys::ffi::types::{ EGLint };
 
 
 use utils::{ UnsignedInteger, AttributeList, AttributeListBuilder, PositiveInteger };
-use display::{ EGLVersion};
+use display::{ EGLVersion, ExtensionSupport};
 
 
 
@@ -20,6 +20,7 @@ use super::attribute::{
 /// for more details.
 pub struct ConfigSearchOptionsBuilder {
     egl_version: EGLVersion,
+    extension_support: ExtensionSupport,
     list_builder: AttributeListBuilder,
 }
 
@@ -27,8 +28,9 @@ pub struct ConfigSearchOptionsBuilder {
 //       value can't be set to EGL_DONT_CARE
 
 impl ConfigSearchOptionsBuilder {
-    pub(crate) fn new(egl_version: EGLVersion) -> ConfigSearchOptionsBuilder {
+    pub(crate) fn new(egl_version: EGLVersion, extension_support: ExtensionSupport) -> ConfigSearchOptionsBuilder {
         ConfigSearchOptionsBuilder {
+            extension_support,
             egl_version,
             list_builder: AttributeListBuilder::new(),
         }
@@ -56,20 +58,22 @@ impl ConfigSearchOptionsBuilder {
         self
     }
 
-    /// Removes `ConfigClientAPI::OPENGL_ES3` if EGL version is 1.4
+    /// If extension EGL_KHR_create_context is not supported, removes
+    /// `ConfigClientAPI::OPENGL_ES3_KHR` bit.
     pub fn client_api(&mut self, mut client_api: ConfigClientAPI) -> &mut Self {
-        if let EGLVersion::EGL_1_4 = self.egl_version {
-            client_api -= ConfigClientAPI::OPENGL_ES3;
+        if !self.extension_support.create_context() {
+            client_api -= ConfigClientAPI::OPENGL_ES3_KHR;
         }
 
         self.list_builder.add(ffi::RENDERABLE_TYPE as EGLint, client_api.bits() as EGLint);
         self
     }
 
-    /// Removes `ConfigClientAPI::OPENGL_ES3` if EGL version is 1.4
+    /// If extension EGL_KHR_create_context is not supported, removes
+    /// `ConfigClientAPI::OPENGL_ES3_KHR` bit.
     pub fn client_api_conformance(&mut self, mut client_api_conformance: ConfigClientAPI) -> &mut Self {
-        if let EGLVersion::EGL_1_4 = self.egl_version {
-            client_api_conformance -= ConfigClientAPI::OPENGL_ES3;
+        if !self.extension_support.create_context() {
+            client_api_conformance -= ConfigClientAPI::OPENGL_ES3_KHR;
         }
 
         self.list_builder.add(ffi::CONFORMANT as EGLint, client_api_conformance.bits() as EGLint);

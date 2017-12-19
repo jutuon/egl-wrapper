@@ -5,7 +5,7 @@ use egl_sys::{ extensions, ffi };
 use egl_sys::ffi::types::{ EGLint, EGLenum, EGLBoolean };
 
 use utils::{ PositiveInteger, IntegerError, UnsignedInteger, QueryError};
-use display::{Display, EGLVersion};
+use display::{Display};
 
 /// Color buffer type and bit counts of colors.
 #[derive(Debug)]
@@ -72,8 +72,8 @@ bitflags! {
         const OPENGL     = ffi::OPENGL_BIT;
         const OPENGL_ES  = ffi::OPENGL_ES_BIT;
         const OPENGL_ES2 = ffi::OPENGL_ES2_BIT;
-        /// Defined only for EGL 1.5
-        const OPENGL_ES3 = extensions::OPENGL_ES3_BIT;
+        /// Defined only for EGL_KHR_create_context extension
+        const OPENGL_ES3_KHR = extensions::OPENGL_ES3_BIT_KHR;
         const OPENVG     = ffi::OPENVG_BIT;
     }
 }
@@ -289,25 +289,29 @@ pub trait NativeRenderable: ConfigUtils {
 }
 
 pub trait ClientAPI: ConfigUtils {
+    /// If extension EGL_KHR_create_context is not supported, removes
+    /// `ConfigClientAPI::OPENGL_ES3_KHR` bit.
     fn client_api(&self) -> ConfigResult<ConfigClientAPI> {
         let value = self.query_attrib(ConfigAttribute::RenderableType)?;
 
         let mut client_api = ConfigClientAPI::from_bits_truncate(value as EGLenum);
 
-        if let EGLVersion::EGL_1_4 = self.display().version() {
-            client_api -= ConfigClientAPI::OPENGL_ES3;
+        if !self.display().extension_support().create_context() {
+            client_api -= ConfigClientAPI::OPENGL_ES3_KHR;
         }
 
         Ok(client_api)
     }
 
+    /// If extension EGL_KHR_create_context is not supported, removes
+    /// `ConfigClientAPI::OPENGL_ES3_KHR` bit.
     fn client_api_conformance(&self) -> ConfigResult<ConfigClientAPI> {
         let value = self.query_attrib(ConfigAttribute::Conformant)?;
 
         let mut client_api = ConfigClientAPI::from_bits_truncate(value as EGLenum);
 
-        if let EGLVersion::EGL_1_4 = self.display().version() {
-            client_api -= ConfigClientAPI::OPENGL_ES3;
+        if !self.display().extension_support().create_context() {
+            client_api -= ConfigClientAPI::OPENGL_ES3_KHR;
         }
 
         Ok(client_api)

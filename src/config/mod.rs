@@ -155,6 +155,10 @@ impl <'a> Config<'a> {
 
     /// EGL_KHR_create_context
     pub fn opengl_es_context_builder_ext(self, version: OpenGLESMajorVersionEXT) -> Option<OpenGLESContextBuilderEXT> {
+        if !self.display().extension_support().create_context() {
+            return None;
+        }
+
         let mut builder = match self.client_api() {
             Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES) && version == OpenGLESMajorVersionEXT::Version1 => {
                 OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
@@ -162,7 +166,7 @@ impl <'a> Config<'a> {
             Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES2) && version == OpenGLESMajorVersionEXT::Version2 => {
                 OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
             },
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES3) && version == OpenGLESMajorVersionEXT::Version3 => {
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES3_KHR) && version == OpenGLESMajorVersionEXT::Version3 => {
                 OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
             }
             _ => return None,
