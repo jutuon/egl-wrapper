@@ -22,6 +22,7 @@ extern {}
 fn main() {
     println!("{}", "Hello world");
 
+    client_extensions();
     default();
     x11();
 }
@@ -36,8 +37,9 @@ fn x11() {
             return;
         }
 
+        let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
 
-        let display = egl_wrapper::display::Display::from_native_display_type(display_ptr).expect("error");
+        let display = display_builder.build_from_native_display(display_ptr).expect("error");
 
         println!("egl: version {:?}", display.version());
 
@@ -146,7 +148,9 @@ fn x11() {
 fn default() {
     use egl_wrapper::config::attribute::*;
 
-    let display = egl_wrapper::display::Display::default_display().expect("error");
+    let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
+
+    let display = display_builder.build_default_display().expect("error");
 
 
     // Test querying version information
@@ -200,6 +204,25 @@ fn default() {
     println!();
 
     //thread::sleep(Duration::from_secs(2));
+}
+
+fn client_extensions() {
+    let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
+
+    match display_builder.client_extension_mode() {
+        Ok(client_extensions_builder) => {
+
+            let client_extensions = client_extensions_builder.client_extensions().unwrap();
+
+            println!("client extensions: ");
+
+            for ext in client_extensions.split_whitespace() {
+                println!("{}", ext);
+            }
+
+        },
+        Err(_) => println!("EGL extension EGL_EXT_client_extensions is not supported"),
+    }
 }
 
 

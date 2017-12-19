@@ -22,6 +22,7 @@ pub enum EGLError {
 }
 
 impl EGLError {
+    /// Returns `Some(error)` if there is an error.
     pub(crate) fn check_errors() -> Option<EGLError> {
         let result = unsafe {
             ffi::GetError()

@@ -163,3 +163,6 @@ pub enum ContextOrSurfaceError<S: Surface, C: Context> {
     BadNativeWindow(SingleContext<C>),
     OtherError(Display, Option<EGLError>),
 }
+
+
+// TODO: extension KHR_create_context current contexts without default framebuffer

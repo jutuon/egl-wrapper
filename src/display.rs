@@ -165,7 +165,7 @@ pub struct Display {
 
 
 impl Display {
-    fn new(display_id: ffi::types::EGLNativeDisplayType) -> Result<Display, DisplayCreationError> {
+    pub(crate) fn new(display_id: ffi::types::EGLNativeDisplayType) -> Result<Display, DisplayCreationError> {
         let raw_display = unsafe {
             ffi::GetDisplay(display_id)
         };
@@ -224,7 +224,7 @@ impl Display {
         }
     }
 
-    pub fn default_display() -> Result<Display, DisplayCreationError> {
+    pub(crate) fn default_display() -> Result<Display, DisplayCreationError> {
         Display::new(ffi::DEFAULT_DISPLAY)
     }
 
