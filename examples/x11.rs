@@ -4,22 +4,21 @@ extern crate egl_wrapper;
 extern crate gl;
 extern crate x11;
 
+mod utils;
+
 use x11::xlib;
 
-use std::os::raw;
-use std::ffi::{CStr};
 use std::ptr::null;
 use std::thread;
 use std::time::Duration;
 use std::mem;
 
-use egl_wrapper::config::Configs;
 use egl_wrapper::display::{ Display, DisplayType };
 use egl_wrapper::surface::window::WindowSurfaceAttributeListBuilder;
 
-
 use egl_wrapper::platform::{RawNativeDisplay, RawNativeWindow, DefaultPlatform};
 
+use utils::{ print_opengl_info, search_configs };
 
 #[link(name="X11")]
 extern {}
@@ -270,67 +269,5 @@ fn client_extensions() {
 
         },
         Err(_) => println!("EGL extension EGL_EXT_client_extensions is not supported"),
-    }
-}
-
-use egl_wrapper::platform::PlatformDisplay;
-
-fn search_configs<'a, P: PlatformDisplay>(display: &'a Display<P>) -> Configs<'a, Display<P>> {
-    use egl_wrapper::config::attribute:: {
-        SurfaceType,
-        ConfigClientAPI
-    };
-
-    use egl_wrapper::config::search:: {
-        UnsignedIntegerSearchAttributes
-    };
-
-    use egl_wrapper::utils::UnsignedInteger;
-
-
-    let mut builder = display.config_search_options_builder();
-
-    builder.add_unsigned_integer_attribute(
-            UnsignedIntegerSearchAttributes::AlphaSize,
-            Some(UnsignedInteger::new(8))
-        )
-        .client_api_conformance(ConfigClientAPI::OPENGL | ConfigClientAPI::OPENGL_ES2)
-        .client_api(ConfigClientAPI::OPENGL | ConfigClientAPI::OPENGL_ES2 )
-        .surface_type(SurfaceType::WINDOW);
-
-    let configs = display.config_search(builder.build()).unwrap();
-
-    configs
-}
-
-pub fn print_opengl_info() {
-    println!("OpenGL context information:");
-    println!("  Version:  {:?}", get_version_string());
-    println!("  Vendor:   {:?}", get_vendor_string());
-    println!("  Renderer: {:?}", get_renderer_string());
-}
-
-
-/// Return OpenGL version string.
-pub fn get_version_string<'a>() -> &'a CStr {
-    unsafe {
-        let ptr_to_str = gl::GetString(gl::VERSION) as *const raw::c_char;
-        CStr::from_ptr(ptr_to_str)
-    }
-}
-
-/// Return OpenGL vendor string.
-pub fn get_vendor_string<'a>() -> &'a CStr {
-    unsafe {
-        let ptr_to_str = gl::GetString(gl::VENDOR) as *const raw::c_char;
-        CStr::from_ptr(ptr_to_str)
-    }
-}
-
-/// Return OpenGL renderer string.
-pub fn get_renderer_string<'a>() -> &'a CStr {
-    unsafe {
-        let ptr_to_str = gl::GetString(gl::RENDERER) as *const raw::c_char;
-        CStr::from_ptr(ptr_to_str)
     }
 }
