@@ -4,7 +4,7 @@ use egl_sys::ffi::types::{ EGLint };
 
 
 use utils::{ UnsignedInteger, AttributeList, AttributeListBuilder, PositiveInteger };
-use display::{ EGLVersion, ExtensionSupport};
+use display::{ EGLVersion, DisplayExtensionSupport};
 
 
 
@@ -20,7 +20,7 @@ use super::attribute::{
 /// for more details.
 pub struct ConfigSearchOptionsBuilder {
     egl_version: EGLVersion,
-    extension_support: ExtensionSupport,
+    extension_support: DisplayExtensionSupport,
     list_builder: AttributeListBuilder,
 }
 
@@ -28,7 +28,7 @@ pub struct ConfigSearchOptionsBuilder {
 //       value can't be set to EGL_DONT_CARE
 
 impl ConfigSearchOptionsBuilder {
-    pub(crate) fn new(egl_version: EGLVersion, extension_support: ExtensionSupport) -> ConfigSearchOptionsBuilder {
+    pub(crate) fn new(egl_version: EGLVersion, extension_support: DisplayExtensionSupport) -> ConfigSearchOptionsBuilder {
         ConfigSearchOptionsBuilder {
             extension_support,
             egl_version,

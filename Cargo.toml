@@ -13,7 +13,14 @@ x11 = "2.17"
 
 [dependencies.egl-sys]
 path = "../egl-sys"
-features = ["racer_autocomplete_workaround", "extensions_module", "EGL_KHR_create_context"]
+features = [
+    "racer_autocomplete_workaround",
+    "extensions_module",
+    "EGL_KHR_create_context",
+    "EGL_EXT_platform_base",
+    "EGL_EXT_platform_x11",
+    "EGL_EXT_platform_wayland"
+]
 #git = "https://github.com/jutuon/egl-sys"
 
 

@@ -17,23 +17,24 @@ use context::gl::{ OpenGLContext, OpenGLContextBuilder, OpenGLContextBuilderEXT}
 use context::gles::{ OpenGLESContext, OpenGLESContextBuilder, OpenGLESContextBuilderEXT };
 use context::SingleContext;
 use error::EGLError;
+use platform::PlatformDisplay;
 
 #[derive(Debug, Clone)]
-pub(crate) struct ExtensionSupport {
+pub struct DisplayExtensionSupport {
     get_all_proc_addresses: bool,
     create_context: bool,
 }
 
-impl ExtensionSupport {
-    fn new() -> ExtensionSupport {
-        ExtensionSupport {
+impl DisplayExtensionSupport {
+    fn new() -> DisplayExtensionSupport {
+        DisplayExtensionSupport {
             get_all_proc_addresses: false,
             create_context: false,
         }
     }
 
-    fn parse(extensions: &str) -> ExtensionSupport {
-        let mut extension_support = ExtensionSupport::new();
+    fn parse(extensions: &str) -> DisplayExtensionSupport {
+        let mut extension_support = DisplayExtensionSupport::new();
 
         for ext in extensions.split_whitespace() {
             match ext {
@@ -111,7 +112,7 @@ impl EGLVersion {
 }
 
 #[derive(Debug)]
-pub(crate) struct DisplayHandle {
+pub struct DisplayHandle {
     raw_display: ffi::types::EGLDisplay,
     _marker: PhantomData<ffi::types::EGLDisplay>,
 }
@@ -126,7 +127,7 @@ impl DisplayHandle {
         Arc::new(display_handle)
     }
 
-    pub fn raw(&self) -> ffi::types::EGLDisplay {
+    pub fn raw_display(&self) -> ffi::types::EGLDisplay {
         self.raw_display
     }
 }
@@ -157,23 +158,16 @@ impl Drop for DisplayHandle {
 
 /// EGLDisplay with initialized EGL
 #[derive(Debug)]
-pub struct Display {
-    extension_support: ExtensionSupport,
+pub struct Display<P: PlatformDisplay> {
+    platform: P,
+    extension_support: DisplayExtensionSupport,
     egl_version: EGLVersion,
     display_handle: Arc<DisplayHandle>,
 }
 
 
-impl Display {
-    pub(crate) fn new(display_id: ffi::types::EGLNativeDisplayType) -> Result<Display, DisplayCreationError> {
-        let raw_display = unsafe {
-            ffi::GetDisplay(display_id)
-        };
-
-        if raw_display == ffi::NO_DISPLAY {
-            return Err(DisplayCreationError::NoMatchingDisplay)
-        }
-
+impl <P: PlatformDisplay> Display<P> {
+    pub(crate) fn new(raw_display: ffi::types::EGLDisplay, platform: P) -> Result<Display<P>, DisplayCreationError> {
         let mut version_major = 0;
         let mut version_minor = 0;
 
@@ -186,18 +180,19 @@ impl Display {
         }
 
         let version = EGLVersion::parse(version_major, version_minor);
-        let extension_support = ExtensionSupport::new();
+        let extension_support = DisplayExtensionSupport::new();
 
         match version {
             Some(version) => {
                 let mut display = Display {
+                    platform,
                     extension_support,
                     egl_version: version,
                     display_handle: DisplayHandle::new_in_arc(raw_display),
                 };
 
                 let parsed_extensions = match display.extensions() {
-                    Ok(text) => Some(ExtensionSupport::parse(&text)),
+                    Ok(text) => Some(DisplayExtensionSupport::parse(&text)),
                     Err(())  => None,
                 };
 
@@ -212,6 +207,7 @@ impl Display {
                 // return error.
 
                 let display = Display {
+                    platform,
                     extension_support,
                     egl_version: EGLVersion::EGL_1_4,
                     display_handle: DisplayHandle::new_in_arc(raw_display),
@@ -222,22 +218,6 @@ impl Display {
                 Err(DisplayCreationError::EGLVersionUnsupported)
             }
         }
-    }
-
-    pub(crate) fn default_display() -> Result<Display, DisplayCreationError> {
-        Display::new(ffi::DEFAULT_DISPLAY)
-    }
-
-    pub fn from_native_display_type(display_id: ffi::types::EGLNativeDisplayType) -> Result<Display, DisplayCreationError> {
-        Display::new(display_id)
-    }
-
-    pub fn raw_display(&self) -> ffi::types::EGLDisplay {
-        self.display_handle.raw()
-    }
-
-    pub fn version(&self) -> EGLVersion {
-        self.egl_version
     }
 
     pub fn client_apis(&self) -> Result<Cow<str>, ()> {
@@ -258,7 +238,7 @@ impl Display {
 
     fn query_string(&self, name: EGLint) -> Result<Cow<str>, ()> {
         unsafe {
-            let ptr = ffi::QueryString(self.raw_display(), name);
+            let ptr = ffi::QueryString(self.display_handle().raw_display(), name);
 
             if ptr.is_null() {
                 return Err(());
@@ -270,14 +250,14 @@ impl Display {
         }
     }
 
-    pub fn configs<'a>(&'a self) -> Result<Configs<'a>, ()> {
+    pub fn configs<'a>(&'a self) -> Result<Configs<'a, Self>, ()> {
         let buf_config_count = self.config_count();
         let mut vec: Vec<ffi::types::EGLConfig> = Vec::with_capacity(buf_config_count as usize);
 
         let mut new_count = 0;
 
         unsafe {
-            let result = ffi::GetConfigs(self.raw_display(), vec.as_mut_slice().as_mut_ptr(), buf_config_count, &mut new_count);
+            let result = ffi::GetConfigs(self.display_handle().raw_display(), vec.as_mut_slice().as_mut_ptr(), buf_config_count, &mut new_count);
 
             if result == ffi::FALSE {
                 return Err(());
@@ -297,7 +277,7 @@ impl Display {
         let mut count = 0;
 
         unsafe {
-            let result = ffi::GetConfigs(self.raw_display(), ptr::null_mut(), 0, &mut count);
+            let result = ffi::GetConfigs(self.display_handle().raw_display(), ptr::null_mut(), 0, &mut count);
 
             if result == ffi::FALSE {
                 return 0;
@@ -315,11 +295,11 @@ impl Display {
         ConfigSearchOptionsBuilder::new(self.egl_version, self.extension_support.clone())
     }
 
-    pub fn config_search<'a>(&'a self, options: ConfigSearchOptions) -> Result<Configs<'a>, ()> {
+    pub fn config_search<'a>(&'a self, options: ConfigSearchOptions) -> Result<Configs<'a, Self>, ()> {
         let mut count = 0;
 
         unsafe {
-            let result = ffi::ChooseConfig(self.raw_display(), options.attribute_list().ptr(), ptr::null_mut(), 0, &mut count);
+            let result = ffi::ChooseConfig(self.display_handle().raw_display(), options.attribute_list().ptr(), ptr::null_mut(), 0, &mut count);
 
             if result == ffi::FALSE {
                 return Err(());
@@ -338,7 +318,7 @@ impl Display {
 
         unsafe {
             let result = ffi::ChooseConfig(
-                self.raw_display(),
+                self.display_handle().raw_display(),
                 options.attribute_list().ptr(),
                 vec.as_mut_slice().as_mut_ptr(),
                 count,
@@ -361,7 +341,7 @@ impl Display {
         Ok(Configs::new(self, vec))
     }
 
-    pub fn build_opengl_context(self, builder: OpenGLContextBuilder) -> Result<SingleContext<OpenGLContext>, DisplayError<Option<EGLError>>> {
+    pub fn build_opengl_context(self, builder: OpenGLContextBuilder) -> Result<SingleContext<OpenGLContext, Self>, DisplayError<P, Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
             Err(error) => Err(DisplayError::new(self, error)),
@@ -369,14 +349,14 @@ impl Display {
     }
 
     /// Extension EGL_KHR_create_context
-    pub fn build_opengl_context_ext(self, builder: OpenGLContextBuilderEXT) -> Result<SingleContext<OpenGLContext>, DisplayError<Option<EGLError>>> {
+    pub fn build_opengl_context_ext(self, builder: OpenGLContextBuilderEXT) -> Result<SingleContext<OpenGLContext, Self>, DisplayError<P, Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
             Err(error) => Err(DisplayError::new(self, error)),
         }
     }
 
-    pub fn build_opengl_es_context(self, builder: OpenGLESContextBuilder) -> Result<SingleContext<OpenGLESContext>, DisplayError<Option<EGLError>>> {
+    pub fn build_opengl_es_context(self, builder: OpenGLESContextBuilder) -> Result<SingleContext<OpenGLESContext, Self>, DisplayError<P, Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
             Err(error) => Err(DisplayError::new(self, error)),
@@ -384,7 +364,7 @@ impl Display {
     }
 
     /// Extension EGL_KHR_create_context
-    pub fn build_opengl_es_context_ext(self, builder: OpenGLESContextBuilderEXT) -> Result<SingleContext<OpenGLESContext>, DisplayError<Option<EGLError>>> {
+    pub fn build_opengl_es_context_ext(self, builder: OpenGLESContextBuilderEXT) -> Result<SingleContext<OpenGLESContext, Self>, DisplayError<P, Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
             Err(error) => Err(DisplayError::new(self, error)),
@@ -395,7 +375,7 @@ impl Display {
         &self.display_handle
     }
 
-    pub fn extension_function_loader(&self) -> ExtensionFunctionLoader {
+    pub fn extension_function_loader(&self) -> ExtensionFunctionLoader<P> {
         ExtensionFunctionLoader {
             _display: self,
         }
@@ -403,7 +383,7 @@ impl Display {
 
     /// Returns `Some(function_loader)` if EGL extension
     /// `EGL_KHR_get_all_proc_addresses` is supported.
-    pub fn function_loader(&self) -> Option<FunctionLoader> {
+    pub fn function_loader(&self) -> Option<FunctionLoader<P>> {
         match self.extension_support.get_all_proc_addresses {
             true => Some(FunctionLoader {
                 _display: self
@@ -416,20 +396,18 @@ impl Display {
         Ok(ClientApiSupport::parse(&self.client_apis()?))
     }
 
-    pub(crate) fn extension_support(&self) -> &ExtensionSupport {
-        &self.extension_support
-    }
+
 }
 
 /// Return ownership of Display back if error occurred.
 #[derive(Debug)]
-pub struct DisplayError<E> {
-    pub display: Display,
+pub struct DisplayError<P: PlatformDisplay, E> {
+    pub display: Display<P>,
     pub error: E,
 }
 
-impl <E> DisplayError<E>  {
-    fn new(display: Display, error: E) -> DisplayError<E> {
+impl <P: PlatformDisplay, E> DisplayError<P, E>  {
+    fn new(display: Display<P>, error: E) -> DisplayError<P, E> {
         DisplayError {
             display,
             error,
@@ -439,11 +417,11 @@ impl <E> DisplayError<E>  {
 
 
 /// Load client API and EGL extension function pointers
-pub struct ExtensionFunctionLoader<'a> {
-    _display: &'a Display,
+pub struct ExtensionFunctionLoader<'a, P: PlatformDisplay + 'a> {
+    _display: &'a Display<P>,
 }
 
-impl <'a> ExtensionFunctionLoader<'a> {
+impl <'a, P: PlatformDisplay + 'a> ExtensionFunctionLoader<'a, P> {
     /// If null is returned the function does not exists.
     /// A non null value does not guarantee existence of the extension function.
     pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
@@ -453,11 +431,11 @@ impl <'a> ExtensionFunctionLoader<'a> {
 
 /// Load client API and EGL function pointers.
 /// Supports all functions, not only extensions functions.
-pub struct FunctionLoader<'a> {
-    _display: &'a Display,
+pub struct FunctionLoader<'a, P: PlatformDisplay + 'a> {
+    _display: &'a Display<P>,
 }
 
-impl <'a> FunctionLoader<'a> {
+impl <'a, P: PlatformDisplay + 'a> FunctionLoader<'a, P> {
     /// If null is returned the function does not exists.
     /// A non null value does not guarantee existence of the function.
     pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
@@ -475,4 +453,25 @@ fn get_proc_address(name: &str) -> Result<*const os::raw::c_void, NulError> {
     unsafe {
         Ok(ffi::GetProcAddress(c_string.as_ptr()) as *const os::raw::c_void)
     }
+}
+
+impl <P: PlatformDisplay> DisplayType for Display<P> {
+    fn display_handle(&self) -> &Arc<DisplayHandle> {
+        &self.display_handle
+    }
+
+    fn egl_version(&self) -> EGLVersion {
+        self.egl_version
+    }
+
+    fn display_extensions(&self) -> &DisplayExtensionSupport {
+        &self.extension_support
+    }
+}
+
+
+pub trait DisplayType {
+    fn display_handle(&self) -> &Arc<DisplayHandle>;
+    fn display_extensions(&self) -> &DisplayExtensionSupport;
+    fn egl_version(&self) -> EGLVersion;
 }

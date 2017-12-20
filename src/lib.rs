@@ -13,7 +13,7 @@ mod error;
 pub mod display;
 pub mod surface;
 pub mod context;
-
+pub mod platform;
 
 pub use egl_sys::ffi;
 
@@ -24,6 +24,8 @@ use error::EGLError;
 
 use std::borrow::Cow;
 use std::ffi::CStr;
+
+use platform::{ DefaultPlatform };
 
 #[derive(Debug)]
 struct ClientExtensions {
@@ -70,13 +72,14 @@ impl DisplayBuilder {
         })
     }
 
-    pub fn build_from_native_display(self, display_id: ffi::types::EGLNativeDisplayType) -> Result<Display, (Self, DisplayCreationError)> {
-        Display::from_native_display_type(display_id).map_err(|e| (self, e))
+    pub fn build_from_native_display(self, display_id: ffi::types::EGLNativeDisplayType) -> Result<Display<DefaultPlatform>, (Self, DisplayCreationError)> {
+        DefaultPlatform::get_display(display_id).map_err(|e| (self, e))
     }
-
-    pub fn build_default_display(self) -> Result<Display, (Self, DisplayCreationError)> {
+/*
+    pub fn build_default_display(self) -> Result<Display<DefaultPlatform>, (Self, DisplayCreationError)> {
         Display::default_display().map_err(|e| (self, e))
     }
+*/
 }
 
 #[derive(Debug)]

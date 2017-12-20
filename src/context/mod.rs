@@ -12,17 +12,17 @@ use error::EGLError;
 use surface::Surface;
 use surface::attribute::RenderBuffer;
 use utils::{ UnsignedInteger, QueryResult, QueryError};
-use display::Display;
+use display::{ DisplayType };
 
 /// Create only one `SingleContext` per Display
 #[derive(Debug)]
-pub struct SingleContext<C: Context> {
-    display: Display,
+pub struct SingleContext<C: Context, D: DisplayType> {
+    display: D,
     context: C,
 }
 
-impl <C: Context> SingleContext<C> {
-    pub(crate) fn new(context: C, display: Display) -> SingleContext<C> {
+impl <C: Context, D: DisplayType> SingleContext<C, D> {
+    pub(crate) fn new(context: C, display: D) -> Self {
         SingleContext {
             display,
             context,
@@ -33,18 +33,18 @@ impl <C: Context> SingleContext<C> {
         &self.context
     }
 
-    pub fn display(&self) -> &Display {
+    pub fn display(&self) -> &D {
         &self.display
     }
 
-    pub fn destroy(self) -> Display {
+    pub fn destroy(self) -> D {
         self.display
     }
 
     // TODO: check that surface will match with context before MakeCurrent function call
 
     /// This method call also completes deletion of previously dropped Contexts and Surfaces.
-    pub fn make_current<S: Surface>(self, surface: S) -> Result<CurrentSurfaceAndContext<S, C>, ContextOrSurfaceError<S, C>> {
+    pub fn make_current<S: Surface>(self, surface: S) -> Result<CurrentSurfaceAndContext<S, C, D>, ContextOrSurfaceError<S, C, D>> {
         let result = unsafe {
             ffi::MakeCurrent(self.context.raw_display(), surface.raw_surface(), surface.raw_surface(), self.context.raw_context())
         };
@@ -89,13 +89,13 @@ pub trait Context: Sized {
 }
 
 
-pub struct CurrentSurfaceAndContext<S: Surface, C: Context> {
+pub struct CurrentSurfaceAndContext<S: Surface, C: Context, D: DisplayType> {
     surface: S,
-    context: SingleContext<C>,
+    context: SingleContext<C, D>,
 }
 
-impl <S: Surface, C: Context> CurrentSurfaceAndContext<S, C> {
-    pub fn swap_buffers(self) -> Result<Self, ContextOrSurfaceError<S, C>> {
+impl <S: Surface, C: Context, D: DisplayType> CurrentSurfaceAndContext<S, C, D> {
+    pub fn swap_buffers(self) -> Result<Self, ContextOrSurfaceError<S, C, D>> {
         let result = unsafe {
             ffi::SwapBuffers(self.context.context().raw_display(), self.surface.raw_surface())
         };
@@ -129,12 +129,12 @@ impl <S: Surface, C: Context> CurrentSurfaceAndContext<S, C> {
 
     }
 
-    pub fn context(&self) -> &SingleContext<C> {
+    pub fn context(&self) -> &SingleContext<C, D> {
         &self.context
     }
 }
 
-impl <S: Surface, C: Context + attribute::ContextAttributeUtils> CurrentSurfaceAndContext<S, C> {
+impl <S: Surface, C: Context + attribute::ContextAttributeUtils, D: DisplayType> CurrentSurfaceAndContext<S, C, D> {
     pub fn render_buffer(&self) -> QueryResult<RenderBuffer> {
         let value = self.context.context().query_attribute(attribute::QueryableAttribute::RenderBuffer)?;
 
@@ -158,10 +158,10 @@ pub(self) fn destroy_context(raw_display: ffi::types::EGLDisplay, raw_context: f
 }
 
 #[derive(Debug)]
-pub enum ContextOrSurfaceError<S: Surface, C: Context> {
-    ContextLost(Display, S),
-    BadNativeWindow(SingleContext<C>),
-    OtherError(Display, Option<EGLError>),
+pub enum ContextOrSurfaceError<S: Surface, C: Context, D: DisplayType> {
+    ContextLost(D, S),
+    BadNativeWindow(SingleContext<C, D>),
+    OtherError(D, Option<EGLError>),
 }
 
 

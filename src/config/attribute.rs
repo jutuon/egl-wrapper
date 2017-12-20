@@ -5,7 +5,7 @@ use egl_sys::{ extensions, ffi };
 use egl_sys::ffi::types::{ EGLint, EGLenum, EGLBoolean };
 
 use utils::{ PositiveInteger, IntegerError, UnsignedInteger, QueryError};
-use display::{Display};
+use display::{ DisplayExtensionSupport};
 
 /// Color buffer type and bit counts of colors.
 #[derive(Debug)]
@@ -109,8 +109,9 @@ type ConfigResult<T> = Result<T, QueryError>;
 
 pub trait ConfigUtils: Sized {
     fn raw_config(&self) -> ffi::types::EGLConfig;
+    fn raw_display(&self) -> ffi::types::EGLDisplay;
+    fn display_extensions(&self) -> &DisplayExtensionSupport;
 
-    fn display(&self) -> &Display;
 
     fn query_attrib(&self, attribute: ConfigAttribute) -> ConfigResult<EGLint> {
         let attribute = attribute as EGLint;
@@ -118,7 +119,7 @@ pub trait ConfigUtils: Sized {
         let mut value = 0;
 
         let result = unsafe {
-            ffi::GetConfigAttrib(self.display().raw_display(), self.raw_config(), attribute, &mut value)
+            ffi::GetConfigAttrib(self.raw_display(), self.raw_config(), attribute, &mut value)
         };
 
         if result == ffi::FALSE {
@@ -296,7 +297,7 @@ pub trait ClientAPI: ConfigUtils {
 
         let mut client_api = ConfigClientAPI::from_bits_truncate(value as EGLenum);
 
-        if !self.display().extension_support().create_context() {
+        if !self.display_extensions().create_context() {
             client_api -= ConfigClientAPI::OPENGL_ES3_KHR;
         }
 
@@ -310,7 +311,7 @@ pub trait ClientAPI: ConfigUtils {
 
         let mut client_api = ConfigClientAPI::from_bits_truncate(value as EGLenum);
 
-        if !self.display().extension_support().create_context() {
+        if !self.display_extensions().create_context() {
             client_api -= ConfigClientAPI::OPENGL_ES3_KHR;
         }
 

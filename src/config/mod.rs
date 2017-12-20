@@ -8,14 +8,13 @@ use std::sync::Arc;
 
 use egl_sys::{ ffi };
 
-use display::{Display, DisplayHandle};
+use display::{DisplayHandle, DisplayType, DisplayExtensionSupport};
 use surface::window::WindowSurfaceBuilder;
 use context::gl::{ OpenGLContextBuilder, OpenGLContextBuilderEXT };
 use context::gles::{ OpenGLESContextBuilder, OpenGLESContextBuilderEXT, EGL14OpenGLESVersion, OpenGLESMajorVersionEXT };
 
 use self::attribute::*;
 use self::client_api::*;
-
 
 #[derive(Debug, Clone)]
 /// Config with reference counted handle to `Display`.
@@ -26,7 +25,7 @@ pub struct DisplayConfig {
 
 impl DisplayConfig {
     pub fn raw_display(&self) -> ffi::types::EGLDisplay {
-        self.display_handle.raw()
+        self.display_handle.raw_display()
     }
 
     pub fn raw_config(&self) -> ffi::types::EGLConfig {
@@ -35,13 +34,13 @@ impl DisplayConfig {
 }
 
 /// Config query results.
-pub struct Configs<'a> {
-    display: &'a Display,
+pub struct Configs<'a, D: DisplayType + 'a> {
+    display: &'a D,
     raw_configs: Vec<ffi::types::EGLConfig>,
 }
 
-impl <'a> Configs<'a> {
-    pub(crate) fn new(display: &Display, raw_configs: Vec<ffi::types::EGLConfig>) -> Configs {
+impl <'a, D: DisplayType + 'a> Configs<'a, D> {
+    pub(crate) fn new(display: &'a D, raw_configs: Vec<ffi::types::EGLConfig>) -> Configs<'a, D> {
         Configs {
             display,
             raw_configs,
@@ -55,13 +54,13 @@ impl <'a> Configs<'a> {
 }
 
 /// Iterate config query results.
-pub struct IntoIter<'a> {
-    display: &'a Display,
+pub struct IntoIter<'a, D: DisplayType + 'a> {
+    display: &'a D,
     raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>,
 }
 
-impl <'a> IntoIter<'a> {
-    fn new(display: &'a Display, raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>) -> IntoIter<'a> {
+impl <'a, D: DisplayType + 'a> IntoIter<'a, D> {
+    fn new(display: &'a D, raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>) -> IntoIter<'a, D> {
         IntoIter {
             display,
             raw_configs_iter,
@@ -69,8 +68,8 @@ impl <'a> IntoIter<'a> {
     }
 }
 
-impl <'a> Iterator for IntoIter<'a> {
-    type Item = Config<'a>;
+impl <'a, D: DisplayType + 'a> Iterator for IntoIter<'a, D> {
+    type Item = Config<'a, D>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.raw_configs_iter.next().map(|raw_config| {
@@ -82,25 +81,25 @@ impl <'a> Iterator for IntoIter<'a> {
     }
 }
 
-impl <'a> IntoIterator for Configs<'a> {
-    type Item = Config<'a>;
-    type IntoIter = IntoIter<'a>;
+impl <'a, D: DisplayType + 'a> IntoIterator for Configs<'a, D> {
+    type Item = Config<'a, D>;
+    type IntoIter = IntoIter<'a, D>;
 
-    fn into_iter(self) -> IntoIter<'a> {
+    fn into_iter(self) -> IntoIter<'a, D> {
         IntoIter::new(self.display, self.raw_configs.into_iter())
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Config<'a> {
-    display: &'a Display,
+pub struct Config<'a, D: DisplayType + 'a> {
+    display: &'a D,
     raw_config: ffi::types::EGLConfig,
 }
 
-impl <'a> Config<'a> {
+impl <'a, D: DisplayType + 'a> Config<'a, D> {
     fn into_display_config(self) -> DisplayConfig {
         DisplayConfig {
-            display_handle: self.display().display_handle().clone(),
+            display_handle: self.display.display_handle().clone(),
             raw_config: self.raw_config(),
         }
     }
@@ -126,7 +125,7 @@ impl <'a> Config<'a> {
     /// Returns None if extension EGL_KHR_create_context is not supported or
     /// config does not support OpengGL.
     pub fn opengl_context_builder_ext(self) -> Option<OpenGLContextBuilderEXT> {
-        if !self.display.extension_support().create_context() {
+        if !self.display_extensions().create_context() {
             return None;
         }
 
@@ -155,7 +154,7 @@ impl <'a> Config<'a> {
 
     /// EGL_KHR_create_context
     pub fn opengl_es_context_builder_ext(self, version: OpenGLESMajorVersionEXT) -> Option<OpenGLESContextBuilderEXT> {
-        if !self.display().extension_support().create_context() {
+        if !self.display_extensions().create_context() {
             return None;
         }
 
@@ -177,29 +176,33 @@ impl <'a> Config<'a> {
     }
 }
 
-impl <'a> ConfigUtils for Config<'a> {
+impl <'a, D: DisplayType + 'a> ConfigUtils for Config<'a, D> {
     fn raw_config(&self) -> ffi::types::EGLConfig {
         self.raw_config
     }
 
-    fn display(&self) -> &Display {
-        self.display
+    fn raw_display(&self) -> ffi::types::EGLDisplay {
+        self.display.display_handle().raw_display()
+    }
+
+    fn display_extensions(&self) -> &DisplayExtensionSupport {
+        self.display.display_extensions()
     }
 }
 
-impl <'a> Color             for Config<'a> {}
-impl <'a> AlphaMaskBuffer   for Config<'a> {}
-impl <'a> Pbuffer           for Config<'a> {}
-impl <'a> FramebufferLevel  for Config<'a> {}
-impl <'a> ClientAPI         for Config<'a> {}
-impl <'a> NativeRenderable  for Config<'a> {}
-impl <'a> SlowConfig        for Config<'a> {}
-impl <'a> Surface           for Config<'a> {}
-impl <'a> SwapInterval      for Config<'a> {}
-impl <'a> MultisampleBuffer for Config<'a> {}
-impl <'a> DepthBuffer       for Config<'a> {}
-impl <'a> StencilBuffer     for Config<'a> {}
-impl <'a> TransparentColor  for Config<'a> {}
+impl <'a, D: DisplayType + 'a> Color             for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> AlphaMaskBuffer   for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> Pbuffer           for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> FramebufferLevel  for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> ClientAPI         for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> NativeRenderable  for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> SlowConfig        for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> Surface           for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> SwapInterval      for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> MultisampleBuffer for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> DepthBuffer       for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> StencilBuffer     for Config<'a, D> {}
+impl <'a, D: DisplayType + 'a> TransparentColor  for Config<'a, D> {}
 
-impl <'a> AllAttributes     for Config<'a> {}
+impl <'a, D: DisplayType + 'a> AllAttributes     for Config<'a, D> {}
 

@@ -101,12 +101,26 @@ impl AttributeListBuilder {
 }
 
 
-pub(crate) struct AttributeList(Vec<EGLint>);
+pub struct AttributeList(Vec<EGLint>);
 
 impl AttributeList {
     pub fn ptr(&self) -> *const EGLint {
         self.0.as_slice().as_ptr()
     }
+}
+
+impl AttributeListTrait for AttributeList {
+    type T = EGLint;
+
+    fn attribute_list_ptr(&self) -> *const EGLint {
+        self.ptr()
+    }
+}
+
+pub trait AttributeListTrait {
+    type T;
+
+    fn attribute_list_ptr(&self) -> *const Self::T;
 }
 
 
