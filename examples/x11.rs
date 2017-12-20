@@ -129,7 +129,7 @@ impl Drop for X11 {
 }
 
 
-unsafe impl RawNativeDisplay for X11 {
+unsafe impl <'a> RawNativeDisplay for &'a mut X11 {
     type T = egl_wrapper::ffi::types::NativeDisplayType;
 
     fn raw_native_display(&self) -> Self::T {
@@ -137,7 +137,7 @@ unsafe impl RawNativeDisplay for X11 {
     }
 }
 
-unsafe impl RawNativeWindow for X11 {
+unsafe impl <'a> RawNativeWindow for &'a mut X11 {
     type T = egl_wrapper::ffi::types::NativeWindowType;
 
     fn raw_native_window(&self) -> Option<Self::T> {
@@ -147,10 +147,13 @@ unsafe impl RawNativeWindow for X11 {
 
 fn x11() {
     unsafe {
-        let x11 = X11::new().unwrap();
+        let mut x11 = X11::new().unwrap();
 
         let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
-        let mut display = display_builder.build_from_native_display(x11).expect("error");
+
+        // Create display with mutable reference to X11 so it is sure that X11 will be dropped last, if
+        // WindowSurface will not be returned from this function.
+        let mut display: Display<DefaultPlatform<&mut X11>> = display_builder.build_from_native_display(&mut x11).expect("error");
 
         print_display_info(&display);
 
@@ -195,7 +198,7 @@ fn x11() {
     }
 }
 
-fn print_display_info(display: &Display<DefaultPlatform<X11>>) {
+fn print_display_info(display: &Display<DefaultPlatform<&mut X11>>) {
     use egl_wrapper::config::attribute::*;
 
     // Test querying version information
