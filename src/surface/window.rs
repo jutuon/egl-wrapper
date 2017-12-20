@@ -6,9 +6,9 @@ use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
 use config::DisplayConfig;
-use utils::{AttributeListBuilder};
+use utils::{AttributeListBuilder, AttributeList, AttributeListTrait};
 
-use error::EGLError;
+use config::client_api::ConfigWindow;
 
 use super::{
     Surface,
@@ -26,11 +26,20 @@ use super::attribute::{
 
 #[derive(Debug)]
 pub struct WindowSurface {
-    display_config: DisplayConfig,
+    window_config: ConfigWindow,
     raw_surface: ffi::types::EGLSurface,
     _marker: PhantomData<ffi::types::EGLSurface>,
 }
 
+impl WindowSurface {
+    pub(crate) fn new(window_config: ConfigWindow, raw_surface: ffi::types::EGLSurface) -> WindowSurface {
+        WindowSurface {
+            window_config,
+            raw_surface,
+            _marker: PhantomData,
+        }
+    }
+}
 
 impl Surface for WindowSurface {
     fn raw_surface(&self) -> ffi::types::EGLSurface {
@@ -38,7 +47,7 @@ impl Surface for WindowSurface {
     }
 
     fn display_config(&self) -> &DisplayConfig {
-        &self.display_config
+        self.window_config.display_config()
     }
 }
 
@@ -55,15 +64,13 @@ impl SwapBehavior           for WindowSurface {}
 
 impl WindowAttributes       for WindowSurface {}
 
-pub struct WindowSurfaceBuilder {
-    display_config: DisplayConfig,
+pub struct WindowSurfaceAttributeListBuilder {
     attributes: AttributeListBuilder,
 }
 
-impl WindowSurfaceBuilder {
-    pub(crate) fn new(display_config: DisplayConfig) -> WindowSurfaceBuilder {
-        WindowSurfaceBuilder {
-            display_config,
+impl WindowSurfaceAttributeListBuilder {
+    pub fn new() -> WindowSurfaceAttributeListBuilder {
+        WindowSurfaceAttributeListBuilder {
             attributes: AttributeListBuilder::new(),
         }
     }
@@ -80,21 +87,15 @@ impl WindowSurfaceBuilder {
         self
     }
 
-    pub fn build(self, native_window: ffi::types::EGLNativeWindowType) -> Result<WindowSurface, Option<EGLError>> {
-        let attributes = self.attributes.build();
+    pub fn build(self) -> WindowSurfaceAttributeList {
+        WindowSurfaceAttributeList(self.attributes.build())
+    }
+}
 
-        let result = unsafe {
-            ffi::CreateWindowSurface(self.display_config.raw_display(), self.display_config.raw_config(), native_window, attributes.ptr())
-        };
+pub struct WindowSurfaceAttributeList(AttributeList);
 
-        if result == ffi::NO_SURFACE {
-            return Err(EGLError::check_errors());
-        }
-
-        Ok(WindowSurface {
-            display_config: self.display_config,
-            raw_surface: result,
-            _marker: PhantomData,
-        })
+impl WindowSurfaceAttributeList {
+    pub fn ptr(&self) -> *const EGLint {
+        self.0.attribute_list_ptr()
     }
 }

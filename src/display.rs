@@ -89,6 +89,7 @@ pub enum DisplayCreationError {
     NoMatchingDisplay,
     EGLInitializationError,
     EGLVersionUnsupported,
+    PlatformExtensionNotSupported,
 }
 
 #[allow(non_camel_case_types)]
@@ -396,7 +397,13 @@ impl <P: PlatformDisplay> Display<P> {
         Ok(ClientApiSupport::parse(&self.client_apis()?))
     }
 
+    pub fn platform_display(&self) -> &P {
+        &self.platform
+    }
 
+    pub fn platform_display_mut(&mut self) -> &mut P {
+        &mut self.platform
+    }
 }
 
 /// Return ownership of Display back if error occurred.

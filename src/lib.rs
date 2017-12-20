@@ -4,7 +4,6 @@ extern crate egl_sys;
 #[macro_use]
 extern crate bitflags;
 
-#[cfg(unix)]
 extern crate x11;
 
 pub mod utils;
@@ -25,23 +24,39 @@ use error::EGLError;
 use std::borrow::Cow;
 use std::ffi::CStr;
 
-use platform::{ DefaultPlatform };
+use platform::{ DefaultPlatform, EXTPlatformX11, RawNativeDisplay, RawNativeWindow, EXTPlatformX11AttributeListBuilder };
 
 #[derive(Debug)]
 struct ClientExtensions {
-
+    ext_platform_x11: bool,
+    ext_platform_wayland: bool,
 }
 
 impl ClientExtensions {
+    fn new() -> ClientExtensions {
+        ClientExtensions {
+            ext_platform_x11: false,
+            ext_platform_wayland: false,
+        }
+    }
+
     fn parse(text: &str) -> ClientExtensions {
-        ClientExtensions {}
+        let mut extensions = ClientExtensions::new();
+
+        for ext in text.split_whitespace() {
+            match ext {
+                "EGL_EXT_platform_x11" => extensions.ext_platform_x11 = true,
+                "EGL_EXT_platform_wayland" => extensions.ext_platform_wayland = true,
+                _ => (),
+            }
+        }
+
+        extensions
     }
 }
 
 #[derive(Debug)]
-pub struct DisplayBuilder {
-
-}
+pub struct DisplayBuilder {}
 
 impl DisplayBuilder {
     pub fn new() -> Result<DisplayBuilder, ()> {
@@ -72,8 +87,8 @@ impl DisplayBuilder {
         })
     }
 
-    pub fn build_from_native_display(self, display_id: ffi::types::EGLNativeDisplayType) -> Result<Display<DefaultPlatform>, (Self, DisplayCreationError)> {
-        DefaultPlatform::get_display(display_id).map_err(|e| (self, e))
+    pub fn build_from_native_display<T: RawNativeDisplay<T=ffi::types::NativeDisplayType> + RawNativeWindow<T=ffi::types::NativeWindowType>> (self, native: T) -> Result<Display<DefaultPlatform<T>>, (Self, DisplayCreationError)> {
+        DefaultPlatform::get_display(native).map_err(|e| (self, e))
     }
 /*
     pub fn build_default_display(self) -> Result<Display<DefaultPlatform>, (Self, DisplayCreationError)> {
@@ -100,5 +115,17 @@ impl DisplayBuilderWithClientExtensions {
 
             Ok(cstr.to_string_lossy())
         }
+    }
+
+    pub fn to_display_builder(self) -> DisplayBuilder {
+        DisplayBuilder {}
+    }
+
+    pub fn build_ext_platform_x11<T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=x11::xlib::Window>>(self, native: T, list: EXTPlatformX11AttributeListBuilder) -> Result<Display<EXTPlatformX11<T>>, (Self, DisplayCreationError)> {
+        if !self.client_extensions.ext_platform_x11 {
+            return Err((self,DisplayCreationError::PlatformExtensionNotSupported));
+        }
+
+        EXTPlatformX11::get_display(native, list).map_err(|e| (self, e))
     }
 }

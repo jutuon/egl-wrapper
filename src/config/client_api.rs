@@ -2,7 +2,7 @@
 
 use super::DisplayConfig;
 
-macro_rules! config_client_api {
+macro_rules! config_type {
     ( $name: ident ) => {
         #[derive(Debug, Clone)]
         pub struct $name {
@@ -23,5 +23,7 @@ macro_rules! config_client_api {
     };
 }
 
-config_client_api!(ConfigOpenGL);
-config_client_api!(ConfigOpenGLES);
+config_type!(ConfigOpenGL);
+config_type!(ConfigOpenGLES);
+
+config_type!(ConfigWindow);

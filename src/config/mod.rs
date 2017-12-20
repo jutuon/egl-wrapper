@@ -9,7 +9,6 @@ use std::sync::Arc;
 use egl_sys::{ ffi };
 
 use display::{DisplayHandle, DisplayType, DisplayExtensionSupport};
-use surface::window::WindowSurfaceBuilder;
 use context::gl::{ OpenGLContextBuilder, OpenGLContextBuilderEXT };
 use context::gles::{ OpenGLESContextBuilder, OpenGLESContextBuilderEXT, EGL14OpenGLESVersion, OpenGLESMajorVersionEXT };
 
@@ -104,10 +103,10 @@ impl <'a, D: DisplayType + 'a> Config<'a, D> {
         }
     }
 
-    pub fn window_surface_builder(self) -> Option<WindowSurfaceBuilder> {
+    pub fn window_surface(self) -> Option<ConfigWindow> {
         match self.surface_type() {
             Ok(surface_type) if surface_type.contains(SurfaceType::WINDOW) => {
-                Some(WindowSurfaceBuilder::new(self.into_display_config()))
+                Some(ConfigWindow::new(self.into_display_config()))
             }
             _ => None
         }

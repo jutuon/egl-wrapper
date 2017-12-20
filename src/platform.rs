@@ -4,34 +4,23 @@
 
 use std::os::raw::c_void;
 
+use x11;
+
 use egl_sys::ffi::types::{ EGLenum, EGLint, EGLDisplay };
 use egl_sys::ffi;
 use egl_sys::extensions;
 
-use display::{ Display, DisplayHandle, DisplayCreationError };
-use utils::AttributeListTrait;
-use utils;
+use display::{ Display, DisplayCreationError };
+use utils::{ AttributeListBuilder };
 
-use surface::window::WindowSurface;
-use surface::pixmap::PixmapSurface;
+use surface::window::{ WindowSurface, WindowSurfaceAttributeList };
 
-pub trait PlatformDisplay: Sized {
+use error::EGLError;
 
-}
+use config::client_api::*;
 
-pub trait PlatformWindow: PlatformDisplay {
-    type NativeWindow: RawNativeWindow;
+pub trait PlatformDisplay: Sized {}
 
-    fn get_platform_window_surface(&self, &Display<Self>) -> Result<WindowSurface, ()>;
-}
-
-/*
-pub trait PlatformPixmap: PlatformDisplay {
-    type NativePixmap;
-
-    fn get_platform_pixmap_surface(&self, &Display<Self>) -> Result<PixmapSurface, ()>;
-}
-*/
 /*
 pub struct EXTPlatformWayland;
 
@@ -42,10 +31,12 @@ impl Platform for EXTPlatformWayland {
 
 
 /// EGL 1.4 default platform
-pub struct DefaultPlatform;
+pub struct DefaultPlatform<T: RawNativeDisplay<T=ffi::types::NativeDisplayType> + RawNativeWindow<T=ffi::types::NativeWindowType>> {
+    native: T,
+}
 
-impl DefaultPlatform {
-    pub fn get_display(native_display: ffi::types::NativeDisplayType) -> Result<Display<Self>, DisplayCreationError> {
+impl <T: RawNativeDisplay<T=ffi::types::NativeDisplayType> + RawNativeWindow<T=ffi::types::NativeWindowType>> DefaultPlatform<T> {
+    pub(crate) fn get_display(native_display: T) -> Result<Display<Self>, DisplayCreationError> {
         let raw_display = unsafe {
            ffi::GetDisplay(native_display.raw_native_display())
         };
@@ -54,85 +45,120 @@ impl DefaultPlatform {
             return Err(DisplayCreationError::NoMatchingDisplay)
         }
 
-        Ok(Display::new(raw_display, DefaultPlatform)?)
+        let platform = DefaultPlatform {
+            native: native_display,
+        };
+
+        Ok(Display::new(raw_display, platform)?)
+    }
+
+    pub fn get_platform_window_surface(&self, config_window: ConfigWindow, attribute_list: WindowSurfaceAttributeList) -> Result<WindowSurface, WindowCreationError> {
+        let raw_native_window = if let Some(native) = self.native.raw_native_window() {
+            native
+        } else {
+            return Err(WindowCreationError::NativeWindowNotFound);
+        };
+
+        let raw_surface = unsafe {
+            ffi::CreateWindowSurface(config_window.display_config().raw_display(), config_window.display_config().raw_config(), raw_native_window, attribute_list.ptr())
+        };
+
+        if raw_surface == ffi::NO_SURFACE {
+            return Err(WindowCreationError::EGLError(EGLError::check_errors()));
+        }
+
+        Ok(WindowSurface::new(config_window, raw_surface))
+    }
+
+    pub fn native_mut(&mut self) -> &mut T {
+        &mut self.native
+    }
+
+    pub fn native(&self) -> &T {
+        &self.native
     }
 }
 
-impl PlatformDisplay for DefaultPlatform {}
+impl <T: RawNativeDisplay<T=ffi::types::NativeDisplayType> + RawNativeWindow<T=ffi::types::NativeWindowType>> PlatformDisplay for DefaultPlatform<T> {}
 
-/*
-impl PlatformWindow for DefaultPlatform {
-    type NativeWindow = ffi::types::NativeWindowType;
 
-    fn get_platform_window_surface(&self, display: &DisplayHandle) -> Result<WindowSurface, ()> {
-        unimplemented!()
-    }
+// Extension EGL_EXT_platform_x11 support
+
+pub struct EXTPlatformX11<T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=x11::xlib::Window>> {
+    x11: T,
 }
-*/
 
-/*
+impl <T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=x11::xlib::Window>> EXTPlatformX11<T> {
+    pub(crate) fn get_display(native_display: T, attribute_list: EXTPlatformX11AttributeListBuilder) -> Result<Display<Self>, DisplayCreationError> {
+        let attribute_list = attribute_list.0.build();
 
-pub struct EXTPlatformX11;
-
-impl PlatformDisplay for EXTPlatformX11 {
-    type AttributeList = utils::AttributeList;
-    type NativeDisplay = ffi::types::NativeDisplayType;
-
-    const PLATFORM_TYPE: EGLenum = extensions::PLATFORM_X11_EXT;
-
-    fn get_display(native_display: Self::NativeDisplay, attribute_list: &Self::AttributeList) -> Result<Display<Self>, ()> {
         let raw_display = unsafe {
-            extensions::GetPlatformDisplayEXT(Self::PLATFORM_TYPE, native_display.raw_native_display(), attribute_list.attribute_list_ptr())
+            extensions::GetPlatformDisplayEXT(extensions::PLATFORM_X11_EXT, native_display.raw_native_display() as *mut c_void, attribute_list.ptr())
         };
 
         if raw_display == ffi::NO_DISPLAY {
-            return Err(());
+            return Err(DisplayCreationError::NoMatchingDisplay);
         }
 
-        Ok(())
+        let x11_platform = EXTPlatformX11 {
+            x11: native_display,
+        };
+
+        Ok(Display::new(raw_display, x11_platform)?)
+    }
+
+    pub fn get_platform_window_surface(&self, config_window: ConfigWindow, attribute_list: WindowSurfaceAttributeList) -> Result<WindowSurface, WindowCreationError> {
+        let raw_native_window = if let Some(native) = self.x11.raw_native_window() {
+            native
+        } else {
+            return Err(WindowCreationError::NativeWindowNotFound);
+        };
+
+        let raw_surface = unsafe {
+            extensions::CreatePlatformWindowSurfaceEXT(config_window.display_config().raw_display(), config_window.display_config().raw_config(), raw_native_window as *mut c_void, attribute_list.ptr())
+        };
+
+        if raw_surface == ffi::NO_SURFACE {
+            return Err(WindowCreationError::EGLError(EGLError::check_errors()));
+        }
+
+        Ok(WindowSurface::new(config_window, raw_surface))
+    }
+
+    pub fn x11_mut(&mut self) -> &mut T {
+        &mut self.x11
+    }
+
+    pub fn x11(&self) -> &T {
+        &self.x11
     }
 }
 
-impl PlatformWindow for EXTPlatformX11 {
-    type NativeWindow = ffi::types::NativeWindowType;
+pub struct EXTPlatformX11AttributeListBuilder(AttributeListBuilder);
 
-    fn get_platform_window_surface(&self, display: &DisplayHandle) -> Result<WindowSurface, ()> {
-        unimplemented!()
+impl EXTPlatformX11AttributeListBuilder {
+    pub fn new() -> EXTPlatformX11AttributeListBuilder {
+        EXTPlatformX11AttributeListBuilder(AttributeListBuilder::new())
     }
 }
-*/
 
 
-pub trait RawNativeDisplay {
+impl <T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=x11::xlib::Window>> PlatformDisplay for EXTPlatformX11<T> {}
+
+pub unsafe trait RawNativeDisplay {
     type T;
 
     fn raw_native_display(&self) -> Self::T;
 }
 
-pub trait RawNativeWindow {
+pub unsafe trait RawNativeWindow {
     type T;
 
-    fn raw_native_window(&self) -> Self::T;
+    fn raw_native_window(&self) -> Option<Self::T>;
 }
 
-pub trait RawNativePixmap {
-    type T;
 
-    fn raw_native_pixmap(&self) -> Self::T;
-}
-
-impl RawNativeDisplay for ffi::types::NativeDisplayType {
-    type T = Self;
-
-    fn raw_native_display(&self) -> Self::T {
-        *self
-    }
-}
-
-impl RawNativeWindow for ffi::types::NativeWindowType {
-    type T = Self;
-
-    fn raw_native_window(&self) -> Self::T {
-        *self
-    }
+pub enum WindowCreationError {
+    NativeWindowNotFound,
+    EGLError(Option<EGLError>),
 }
