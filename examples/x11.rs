@@ -14,7 +14,12 @@ use std::time::Duration;
 use std::mem;
 
 use egl_wrapper::config::Configs;
-use egl_wrapper::display::Display;
+use egl_wrapper::display::{ Display, DisplayType };
+use egl_wrapper::surface::window::WindowSurfaceAttributeListBuilder;
+
+
+use egl_wrapper::platform::{RawNativeDisplay, RawNativeWindow, DefaultPlatform};
+
 
 #[link(name="X11")]
 extern {}
@@ -23,41 +28,37 @@ fn main() {
     println!("{}", "Hello world");
 
     client_extensions();
-    default();
     x11();
 }
 
-fn x11() {
-    unsafe {
+// TODO: Create X11 Window with native visual ID from EGL Config
 
-        let display_ptr = xlib::XOpenDisplay(null());
 
-        if display_ptr.is_null() {
+#[derive(Debug)]
+struct X11 {
+    raw_display: *mut x11::xlib::Display,
+    raw_window: Option<x11::xlib::Window>,
+}
+
+impl X11 {
+    fn new() -> Result<X11, ()> {
+
+        let raw_display = unsafe {
+            xlib::XOpenDisplay(null())
+        };
+
+        if raw_display.is_null() {
             println!("x11 display creation error");
-            return;
+            return Err(());
         }
 
-        let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
+        Ok(X11 {
+            raw_display,
+            raw_window: None,
+        })
+    }
 
-        let display = display_builder.build_from_native_display(display_ptr).expect("error");
-
-        println!("egl: version {:?}", display.version());
-
-        let client_api_support = display.client_api_support().unwrap();
-
-        if !client_api_support.opengl && !client_api_support.opengl_es {
-            println!("OpenGL or OpenGL ES support is required");
-            drop(display);
-
-            let result = xlib::XCloseDisplay(display_ptr);
-
-            if result != 0 {
-                println!("x11 display close error");
-            }
-
-            return
-        }
-
+    fn create_window(&mut self) -> Result<(), ()> {
         let mut window_attributes = xlib::XSetWindowAttributes {
             background_pixmap: 0,
             background_pixel: 0,
@@ -76,43 +77,102 @@ fn x11() {
             cursor: 0,
         };
 
-        let window = xlib::XCreateWindow(
-            display_ptr,
-            xlib::XDefaultRootWindow(display_ptr),
-            0,
-            0,
-            640,
-            480,
-            0,
-            xlib::CopyFromParent,
-            xlib::CopyFromParent as u32,
-            xlib::CopyFromParent as *mut xlib::Visual,
-            0,
-            &mut window_attributes
-        );
+        unsafe {
+            let window = xlib::XCreateWindow(
+                self.raw_display,
+                xlib::XDefaultRootWindow(self.raw_display),
+                0,
+                0,
+                640,
+                480,
+                0,
+                xlib::CopyFromParent,
+                xlib::CopyFromParent as u32,
+                xlib::CopyFromParent as *mut xlib::Visual,
+                0,
+                &mut window_attributes
+            );
 
-        xlib::XSelectInput(display_ptr, window, xlib::StructureNotifyMask);
+            xlib::XSelectInput(self.raw_display, window, xlib::StructureNotifyMask);
 
-        xlib::XMapWindow(display_ptr, window);
+            xlib::XMapWindow(self.raw_display, window);
 
-        let mut event: xlib::XEvent = mem::zeroed();
+            let mut event: xlib::XEvent = mem::zeroed();
 
-        loop {
-            xlib::XNextEvent(display_ptr, &mut event);
-            if event.type_ == xlib::MapNotify {
-                break;
+            loop {
+                xlib::XNextEvent(self.raw_display, &mut event);
+                if event.type_ == xlib::MapNotify {
+                    break;
+                }
+            }
+
+            self.raw_window = Some(window);
+            Ok(())
+        }
+    }
+}
+
+impl Drop for X11 {
+    fn drop(&mut self) {
+        unsafe {
+            if let Some(raw_window) = self.raw_window {
+                xlib::XDestroyWindow(self.raw_display, raw_window);
+            }
+
+            let result = xlib::XCloseDisplay(self.raw_display);
+
+            if result != 0 {
+                println!("x11 display close error");
             }
         }
+    }
+}
 
 
-        let (window_builder, opengl_context_builder) = {
+unsafe impl RawNativeDisplay for X11 {
+    type T = egl_wrapper::ffi::types::NativeDisplayType;
+
+    fn raw_native_display(&self) -> Self::T {
+        self.raw_display
+    }
+}
+
+unsafe impl RawNativeWindow for X11 {
+    type T = egl_wrapper::ffi::types::NativeWindowType;
+
+    fn raw_native_window(&self) -> Option<Self::T> {
+        self.raw_window
+    }
+}
+
+fn x11() {
+    unsafe {
+        let x11 = X11::new().unwrap();
+
+        let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
+        let mut display = display_builder.build_from_native_display(x11).expect("error");
+
+        print_display_info(&display);
+
+        let client_api_support = display.client_api_support().unwrap();
+
+        if !client_api_support.opengl && !client_api_support.opengl_es {
+            println!("OpenGL or OpenGL ES support is required");
+
+            return
+        }
+
+        let (config_window, opengl_context_builder) = {
             let config = search_configs(&display).into_iter().next().unwrap();
-            let window_builder = config.clone().window_surface_builder().unwrap();
+            let config_window = config.clone().window_surface().unwrap();
             let opengl_context_builder = config.opengl_context_builder().unwrap();
-            (window_builder, opengl_context_builder)
+            (config_window, opengl_context_builder)
         };
 
-        let egl_window_surface = window_builder.build(window).unwrap();
+        display.platform_display_mut().native_mut().create_window().unwrap();
+
+        let attributes = WindowSurfaceAttributeListBuilder::new().build();
+        let egl_window_surface = display.platform_display().get_platform_window_surface(config_window, attributes).unwrap();
         let context = display.build_opengl_context(opengl_context_builder).unwrap();
 
         let mut current_context = context.make_current(egl_window_surface).unwrap();
@@ -132,30 +192,15 @@ fn x11() {
         current_context = current_context.swap_buffers().unwrap();
 
         thread::sleep(Duration::from_secs(2));
-
-
-        xlib::XDestroyWindow(display_ptr, window);
-
-
-        let result = xlib::XCloseDisplay(display_ptr);
-
-        if result != 0 {
-            println!("x11 display close error");
-        }
     }
 }
 
-fn default() {
+fn print_display_info(display: &Display<DefaultPlatform<X11>>) {
     use egl_wrapper::config::attribute::*;
-
-    let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
-
-    let display = display_builder.build_default_display().expect("error");
-
 
     // Test querying version information
 
-    println!("egl: version {:?}", display.version());
+    println!("egl: version {:?}", display.egl_version());
 
     println!("vendor: {:?}", display.vendor().unwrap());
     println!("client_apis: {:?}", display.client_apis().unwrap());
@@ -225,8 +270,9 @@ fn client_extensions() {
     }
 }
 
+use egl_wrapper::platform::PlatformDisplay;
 
-fn search_configs<'a>(display: &'a Display) -> Configs<'a> {
+fn search_configs<'a, P: PlatformDisplay>(display: &'a Display<P>) -> Configs<'a, Display<P>> {
     use egl_wrapper::config::attribute:: {
         SurfaceType,
         ConfigClientAPI

@@ -30,6 +30,7 @@ impl Platform for EXTPlatformWayland {
 */
 
 
+#[derive(Debug)]
 /// EGL 1.4 default platform
 pub struct DefaultPlatform<T: RawNativeDisplay<T=ffi::types::NativeDisplayType> + RawNativeWindow<T=ffi::types::NativeWindowType>> {
     native: T,
@@ -84,6 +85,7 @@ impl <T: RawNativeDisplay<T=ffi::types::NativeDisplayType> + RawNativeWindow<T=f
 
 // Extension EGL_EXT_platform_x11 support
 
+#[derive(Debug)]
 pub struct EXTPlatformX11<T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=x11::xlib::Window>> {
     x11: T,
 }
@@ -157,7 +159,7 @@ pub unsafe trait RawNativeWindow {
     fn raw_native_window(&self) -> Option<Self::T>;
 }
 
-
+#[derive(Debug)]
 pub enum WindowCreationError {
     NativeWindowNotFound,
     EGLError(Option<EGLError>),

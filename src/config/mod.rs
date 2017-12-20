@@ -89,7 +89,7 @@ impl <'a, D: DisplayType + 'a> IntoIterator for Configs<'a, D> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Config<'a, D: DisplayType + 'a> {
     display: &'a D,
     raw_config: ffi::types::EGLConfig,
@@ -172,6 +172,13 @@ impl <'a, D: DisplayType + 'a> Config<'a, D> {
 
         builder.set_major_version(version);
         Some(builder)
+    }
+
+    pub fn clone(&self) -> Config<'a, D> {
+        Config {
+            display: self.display,
+            raw_config: self.raw_config,
+        }
     }
 }
 
