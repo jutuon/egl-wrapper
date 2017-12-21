@@ -114,7 +114,7 @@ impl ConfigSearchOptions {
 
 #[repr(u32)]
 pub enum UnsignedIntegerSearchAttributes {
-    // BufferSize          = ffi::BUFFER_SIZE,
+    BufferSize          = ffi::BUFFER_SIZE,
     RedSize             = ffi::RED_SIZE,
     GreenSize           = ffi::GREEN_SIZE,
     BlueSize            = ffi::BLUE_SIZE,
