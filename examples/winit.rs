@@ -1,13 +1,12 @@
-
 extern crate egl_wrapper;
 
-extern crate winit;
 extern crate gl;
+extern crate winit;
 extern crate x11;
 
 mod utils;
 
-use utils::{ print_opengl_info, search_configs };
+use utils::{print_opengl_info, search_configs};
 
 use x11::xlib;
 
@@ -15,13 +14,14 @@ use std::thread;
 use std::time::Duration;
 use std::fmt;
 
-use egl_wrapper::display::{ Display, DisplayType };
+use egl_wrapper::display::{Display, DisplayType};
 use egl_wrapper::surface::window::WindowSurfaceAttributeListBuilder;
-use egl_wrapper::platform::{RawNativeDisplay, RawNativeWindow, EXTPlatformX11, EXTPlatformX11AttributeListBuilder};
+use egl_wrapper::platform::{EXTPlatformX11, EXTPlatformX11AttributeListBuilder, RawNativeDisplay,
+                            RawNativeWindow};
 use egl_wrapper::config::attribute::NativeRenderable;
 
-use winit::{ EventsLoop, WindowBuilder, Window };
-use winit::os::unix::{ EventsLoopExt, WindowExt };
+use winit::{EventsLoop, Window, WindowBuilder};
+use winit::os::unix::{EventsLoopExt, WindowExt};
 
 struct WinitWindowX11 {
     events: EventsLoop,
@@ -37,13 +37,12 @@ impl fmt::Debug for WinitWindowX11 {
 
 impl WinitWindowX11 {
     fn create_window(&mut self, x11_visual_id: egl_wrapper::ffi::types::EGLint) -> Result<(), ()> {
-
         // TODO: create window with X11 Visual
 
         let window = WindowBuilder::new()
             .with_dimensions(640, 480)
-            .build(&self.events).unwrap();
-
+            .build(&self.events)
+            .unwrap();
 
         self.window_xid = window.get_xlib_window().unwrap() as xlib::Window;
         self.window = Some(window);
@@ -52,8 +51,7 @@ impl WinitWindowX11 {
     }
 }
 
-
-unsafe impl <'a> RawNativeDisplay for &'a mut WinitWindowX11 {
+unsafe impl<'a> RawNativeDisplay for &'a mut WinitWindowX11 {
     type T = *mut x11::xlib::Display;
 
     fn raw_native_display(&self) -> Self::T {
@@ -61,7 +59,7 @@ unsafe impl <'a> RawNativeDisplay for &'a mut WinitWindowX11 {
     }
 }
 
-unsafe impl <'a> RawNativeWindow for &'a mut WinitWindowX11 {
+unsafe impl<'a> RawNativeWindow for &'a mut WinitWindowX11 {
     type T = *mut x11::xlib::Window;
 
     fn raw_native_window(&self) -> Option<Self::T> {
@@ -69,7 +67,6 @@ unsafe impl <'a> RawNativeWindow for &'a mut WinitWindowX11 {
         Some(window_ptr as *mut xlib::Window)
     }
 }
-
 
 fn main() {
     let events_loop = EventsLoop::new();
@@ -83,18 +80,21 @@ fn main() {
     }
 }
 
-
 fn x11_platform_extension(events_loop: EventsLoop) {
-
     let mut winit_window = WinitWindowX11 {
         events: events_loop,
         window: None,
         window_xid: 0,
     };
 
-    let display_builder = egl_wrapper::DisplayBuilder::new().unwrap().client_extension_mode().unwrap();
+    let display_builder = egl_wrapper::DisplayBuilder::new()
+        .unwrap()
+        .client_extension_mode()
+        .unwrap();
 
-    let mut display: Display<EXTPlatformX11<&mut WinitWindowX11>> = display_builder.build_ext_platform_x11(&mut winit_window, EXTPlatformX11AttributeListBuilder::new()).expect("error");
+    let mut display: Display<EXTPlatformX11<&mut WinitWindowX11>> = display_builder
+        .build_ext_platform_x11(&mut winit_window, EXTPlatformX11AttributeListBuilder::new())
+        .expect("error");
 
     println!("display: {:?}", display.egl_version());
 
@@ -106,19 +106,30 @@ fn x11_platform_extension(events_loop: EventsLoop) {
         (config_window, opengl_context_builder, x11_visual)
     };
 
-    display.platform_display_mut().x11_mut().create_window(x11_visual).unwrap();
+    display
+        .platform_display_mut()
+        .x11_mut()
+        .create_window(x11_visual)
+        .unwrap();
 
     let attributes = WindowSurfaceAttributeListBuilder::new().build();
-    let egl_window_surface = display.platform_display().get_platform_window_surface(config_window, attributes).unwrap();
-    let context = display.build_opengl_context(opengl_context_builder).unwrap();
+    let egl_window_surface = display
+        .platform_display()
+        .get_platform_window_surface(config_window, attributes)
+        .unwrap();
+    let context = display
+        .build_opengl_context(opengl_context_builder)
+        .unwrap();
 
     let mut current_context = context.make_current(egl_window_surface).unwrap();
 
     {
-        let function_loader = current_context.context().display().function_loader().unwrap();
-        gl::load_with(|s| {
-            function_loader.get_proc_address(s).unwrap()
-        });
+        let function_loader = current_context
+            .context()
+            .display()
+            .function_loader()
+            .unwrap();
+        gl::load_with(|s| function_loader.get_proc_address(s).unwrap());
     }
 
     unsafe {

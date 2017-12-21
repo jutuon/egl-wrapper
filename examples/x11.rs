@@ -1,4 +1,3 @@
-
 extern crate egl_wrapper;
 
 extern crate gl;
@@ -13,15 +12,15 @@ use std::thread;
 use std::time::Duration;
 use std::mem;
 
-use egl_wrapper::display::{ Display, DisplayType };
+use egl_wrapper::display::{Display, DisplayType};
 use egl_wrapper::surface::window::WindowSurfaceAttributeListBuilder;
 
-use egl_wrapper::platform::{RawNativeDisplay, RawNativeWindow, DefaultPlatform};
+use egl_wrapper::platform::{DefaultPlatform, RawNativeDisplay, RawNativeWindow};
 
-use utils::{ print_opengl_info, search_configs };
+use utils::{print_opengl_info, search_configs};
 
-#[link(name="X11")]
-extern {}
+#[link(name = "X11")]
+extern "C" {}
 
 fn main() {
     println!("{}", "Hello world");
@@ -29,7 +28,6 @@ fn main() {
     client_extensions();
     x11();
 }
-
 
 #[derive(Debug)]
 struct X11 {
@@ -39,10 +37,7 @@ struct X11 {
 
 impl X11 {
     fn new() -> Result<X11, ()> {
-
-        let raw_display = unsafe {
-            xlib::XOpenDisplay(null())
-        };
+        let raw_display = unsafe { xlib::XOpenDisplay(null()) };
 
         if raw_display.is_null() {
             println!("x11 display creation error");
@@ -56,7 +51,6 @@ impl X11 {
     }
 
     fn create_window(&mut self, visual_id: xlib::VisualID) -> Result<(), ()> {
-
         println!("visual id: {}", visual_id);
 
         unsafe {
@@ -70,14 +64,14 @@ impl X11 {
                 self.raw_display,
                 xlib::VisualIDMask,
                 &mut visual_info_template,
-                &mut visual_count
+                &mut visual_count,
             );
 
             println!("visual_count: {}", visual_count);
 
             if visual_info_ptr.is_null() {
                 println!("error: visual info ptr is null");
-                return Err(())
+                return Err(());
             }
 
             let mut colormap: xlib::Colormap = xlib::XCreateColormap(
@@ -89,7 +83,7 @@ impl X11 {
 
             if colormap == 0 {
                 println!("error: colormap is null");
-                return Err(())
+                return Err(());
             }
 
             println!("colormap id: {}", colormap);
@@ -112,7 +106,6 @@ impl X11 {
                 cursor: 0,
             };
 
-
             let window = xlib::XCreateWindow(
                 self.raw_display,
                 xlib::XDefaultRootWindow(self.raw_display),
@@ -125,7 +118,7 @@ impl X11 {
                 xlib::InputOutput as u32,
                 (*visual_info_ptr).visual,
                 xlib::CWColormap,
-                &mut window_attributes
+                &mut window_attributes,
             );
 
             println!("window id: {}", window);
@@ -165,8 +158,7 @@ impl Drop for X11 {
     }
 }
 
-
-unsafe impl <'a> RawNativeDisplay for &'a mut X11 {
+unsafe impl<'a> RawNativeDisplay for &'a mut X11 {
     type T = egl_wrapper::ffi::types::NativeDisplayType;
 
     fn raw_native_display(&self) -> Self::T {
@@ -174,7 +166,7 @@ unsafe impl <'a> RawNativeDisplay for &'a mut X11 {
     }
 }
 
-unsafe impl <'a> RawNativeWindow for &'a mut X11 {
+unsafe impl<'a> RawNativeWindow for &'a mut X11 {
     type T = egl_wrapper::ffi::types::NativeWindowType;
 
     fn raw_native_window(&self) -> Option<Self::T> {
@@ -190,7 +182,9 @@ fn x11() {
 
         // Create display with mutable reference to X11 so it is sure that X11 will be dropped last, if
         // WindowSurface will not be returned from this function.
-        let mut display: Display<DefaultPlatform<&mut X11>> = display_builder.build_from_native_display(&mut x11).expect("error");
+        let mut display: Display<DefaultPlatform<&mut X11>> = display_builder
+            .build_from_native_display(&mut x11)
+            .expect("error");
 
         print_display_info(&display);
 
@@ -199,7 +193,7 @@ fn x11() {
         if !client_api_support.opengl && !client_api_support.opengl_es {
             println!("OpenGL or OpenGL ES support is required");
 
-            return
+            return;
         }
 
         let (config_window, opengl_context_builder, visual_id) = {
@@ -213,19 +207,30 @@ fn x11() {
             (config_window, opengl_context_builder, visual_id)
         };
 
-        display.platform_display_mut().native_mut().create_window(visual_id as xlib::XID).unwrap();
+        display
+            .platform_display_mut()
+            .native_mut()
+            .create_window(visual_id as xlib::XID)
+            .unwrap();
 
         let attributes = WindowSurfaceAttributeListBuilder::new().build();
-        let egl_window_surface = display.platform_display().get_platform_window_surface(config_window, attributes).unwrap();
-        let context = display.build_opengl_context(opengl_context_builder).unwrap();
+        let egl_window_surface = display
+            .platform_display()
+            .get_platform_window_surface(config_window, attributes)
+            .unwrap();
+        let context = display
+            .build_opengl_context(opengl_context_builder)
+            .unwrap();
 
         let mut current_context = context.make_current(egl_window_surface).unwrap();
 
         {
-            let function_loader = current_context.context().display().function_loader().unwrap();
-            gl::load_with(|s| {
-                function_loader.get_proc_address(s).unwrap()
-            });
+            let function_loader = current_context
+                .context()
+                .display()
+                .function_loader()
+                .unwrap();
+            gl::load_with(|s| function_loader.get_proc_address(s).unwrap());
         }
 
         gl::ClearColor(0.0, 0.5, 0.8, 0.0);
@@ -275,7 +280,6 @@ fn print_display_info(display: &Display<DefaultPlatform<&mut X11>>) {
             //println!();
 
             config.all().unwrap();
-
         }
     }
 
@@ -300,7 +304,6 @@ fn client_extensions() {
 
     match display_builder.client_extension_mode() {
         Ok(client_extensions_builder) => {
-
             let client_extensions = client_extensions_builder.client_extensions().unwrap();
 
             println!("client extensions: ");
@@ -308,8 +311,7 @@ fn client_extensions() {
             for ext in client_extensions.split_whitespace() {
                 println!("{}", ext);
             }
-
-        },
+        }
         Err(_) => println!("EGL extension EGL_EXT_client_extensions is not supported"),
     }
 }
