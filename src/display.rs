@@ -451,7 +451,7 @@ impl <'a, P: PlatformDisplay + 'a> FunctionLoader<'a, P> {
 }
 
 
-fn get_proc_address(name: &str) -> Result<*const os::raw::c_void, NulError> {
+pub(crate) fn get_proc_address(name: &str) -> Result<*const os::raw::c_void, NulError> {
     let c_string = match CString::new(name) {
         Ok(s) => s,
         Err(error) => return Err(error),

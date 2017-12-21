@@ -16,6 +16,8 @@ pub mod platform;
 
 pub use egl_sys::ffi;
 
+use egl_sys::extensions;
+
 use ffi::types::EGLint;
 
 use display::{ Display, DisplayCreationError };
@@ -25,6 +27,13 @@ use std::borrow::Cow;
 use std::ffi::CStr;
 
 use platform::{ DefaultPlatform, EXTPlatformX11, RawNativeDisplay, RawNativeWindow, EXTPlatformX11AttributeListBuilder };
+
+use display::get_proc_address;
+use std::os::raw::c_void;
+
+fn load_extension(text: &str) -> *const c_void {
+    get_proc_address(text).unwrap()
+}
 
 #[derive(Debug)]
 struct ClientExtensions {
@@ -45,6 +54,16 @@ impl ClientExtensions {
 
         for ext in text.split_whitespace() {
             match ext {
+                "EGL_EXT_platform_base" => {
+                    extensions::GetPlatformDisplayEXT::load_with(load_extension);
+                    extensions::CreatePlatformWindowSurfaceEXT::load_with(load_extension);
+                    extensions::CreatePlatformPixmapSurfaceEXT::load_with(load_extension);
+
+                    if !extensions::GetPlatformDisplayEXT::is_loaded() { panic!() }
+                    if !extensions::CreatePlatformWindowSurfaceEXT::is_loaded() { panic!() }
+                    if !extensions::CreatePlatformPixmapSurfaceEXT::is_loaded() { panic!() }
+
+                },
                 "EGL_EXT_platform_x11" => extensions.ext_platform_x11 = true,
                 "EGL_EXT_platform_wayland" => extensions.ext_platform_wayland = true,
                 _ => (),
