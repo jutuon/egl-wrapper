@@ -1,28 +1,17 @@
-
-
 use std::marker::PhantomData;
 
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
 use config::DisplayConfig;
-use utils::{AttributeListBuilder, AttributeList, AttributeListTrait};
+use utils::{AttributeList, AttributeListBuilder, AttributeListTrait};
 
 use config::client_api::ConfigWindow;
 
-use super::{
-    Surface,
-    destroy_surface,
-};
+use super::{destroy_surface, Surface};
 
-use super::attribute::{
-    RenderBuffer,
-    CommonAttributes,
-    SurfaceAttributeUtils,
-    WindowAttributes,
-    MultisampleResolve,
-    SwapBehavior,
-};
+use super::attribute::{CommonAttributes, MultisampleResolve, RenderBuffer, SurfaceAttributeUtils,
+                       SwapBehavior, WindowAttributes};
 
 #[derive(Debug)]
 pub struct WindowSurface {
@@ -32,7 +21,10 @@ pub struct WindowSurface {
 }
 
 impl WindowSurface {
-    pub(crate) fn new(window_config: ConfigWindow, raw_surface: ffi::types::EGLSurface) -> WindowSurface {
+    pub(crate) fn new(
+        window_config: ConfigWindow,
+        raw_surface: ffi::types::EGLSurface,
+    ) -> WindowSurface {
         WindowSurface {
             window_config,
             raw_surface,
@@ -53,16 +45,16 @@ impl Surface for WindowSurface {
 
 impl Drop for WindowSurface {
     fn drop(&mut self) {
-       destroy_surface(self)
+        destroy_surface(self)
     }
 }
 
-impl SurfaceAttributeUtils  for WindowSurface {}
-impl CommonAttributes       for WindowSurface {}
-impl MultisampleResolve     for WindowSurface {}
-impl SwapBehavior           for WindowSurface {}
+impl SurfaceAttributeUtils for WindowSurface {}
+impl CommonAttributes for WindowSurface {}
+impl MultisampleResolve for WindowSurface {}
+impl SwapBehavior for WindowSurface {}
 
-impl WindowAttributes       for WindowSurface {}
+impl WindowAttributes for WindowSurface {}
 
 pub struct WindowSurfaceAttributeListBuilder {
     attributes: AttributeListBuilder,
@@ -83,7 +75,8 @@ impl WindowSurfaceAttributeListBuilder {
     ///
     /// For more information see EGL 1.4 specification page 28.
     pub fn render_buffer(&mut self, render_buffer: RenderBuffer) -> &mut Self {
-        self.attributes.add(ffi::RENDER_BUFFER as EGLint, render_buffer as EGLint);
+        self.attributes
+            .add(ffi::RENDER_BUFFER as EGLint, render_buffer as EGLint);
         self
     }
 

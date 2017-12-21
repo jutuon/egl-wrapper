@@ -1,16 +1,15 @@
-
 use egl_sys::ffi;
-use egl_sys::ffi::types::{ EGLint, EGLenum };
+use egl_sys::ffi::types::{EGLenum, EGLint};
 
 use error::EGLError;
-use utils::{UnsignedInteger, PositiveInteger, QueryError, QueryResult};
+use utils::{PositiveInteger, QueryError, QueryResult, UnsignedInteger};
 
 use super::Surface;
 
 #[derive(Debug)]
 #[repr(u32)]
 pub enum RenderBuffer {
-    BackBuffer   = ffi::BACK_BUFFER,
+    BackBuffer = ffi::BACK_BUFFER,
     SingleBuffer = ffi::SINGLE_BUFFER,
 }
 
@@ -18,8 +17,8 @@ pub enum RenderBuffer {
 #[repr(u32)]
 /// OpenGL ES
 pub enum TextureFormat {
-    RGB       = ffi::TEXTURE_RGB,
-    RGBA      = ffi::TEXTURE_RGBA,
+    RGB = ffi::TEXTURE_RGB,
+    RGBA = ffi::TEXTURE_RGBA,
     NoTexture = ffi::NO_TEXTURE,
 }
 
@@ -35,17 +34,17 @@ pub enum TextureTarget {
 #[repr(u32)]
 pub enum SetSurfaceAttribute {
     /// OpenGL ES
-    MipmapLevel        = ffi::MIPMAP_LEVEL,
+    MipmapLevel = ffi::MIPMAP_LEVEL,
 
     MultisampleResolve = ffi::MULTISAMPLE_RESOLVE,
-    SwapBehavior       = ffi::SWAP_BEHAVIOR,
+    SwapBehavior = ffi::SWAP_BEHAVIOR,
 }
 
 #[derive(Debug)]
 #[repr(u32)]
 pub enum MultisampleResolveValue {
     ResolveDefault = ffi::MULTISAMPLE_RESOLVE_DEFAULT,
-    ResolveBox     = ffi::MULTISAMPLE_RESOLVE_BOX,
+    ResolveBox = ffi::MULTISAMPLE_RESOLVE_BOX,
 }
 
 #[derive(Debug)]
@@ -58,29 +57,37 @@ pub enum SwapBehaviorValue {
 #[derive(Debug)]
 #[repr(u32)]
 pub enum QueryableAttribute {
-    VgAlphaFormat        = ffi::VG_ALPHA_FORMAT,
-    VgColorSpace         = ffi::VG_COLORSPACE,
-    ConfigID             = ffi::CONFIG_ID,
-    Height               = ffi::HEIGHT,
+    VgAlphaFormat = ffi::VG_ALPHA_FORMAT,
+    VgColorSpace = ffi::VG_COLORSPACE,
+    ConfigID = ffi::CONFIG_ID,
+    Height = ffi::HEIGHT,
     HorizontalResolution = ffi::HORIZONTAL_RESOLUTION,
-    LargestPbuffer       = ffi::LARGEST_PBUFFER,
-    MipmapTexture        = ffi::MIPMAP_TEXTURE,
-    MipmapLevel          = ffi::MIPMAP_LEVEL,
-    MultisampleResolve   = ffi::MULTISAMPLE_RESOLVE,
-    PixelAspectRatio     = ffi::PIXEL_ASPECT_RATIO,
-    RenderBuffer         = ffi::RENDER_BUFFER,
-    SwapBehavior         = ffi::SWAP_BEHAVIOR,
-    TextureFormat        = ffi::TEXTURE_FORMAT,
-    TextureTarget        = ffi::TEXTURE_TARGET,
-    VerticalResolution   = ffi::VERTICAL_RESOLUTION,
-    Width                = ffi::WIDTH,
+    LargestPbuffer = ffi::LARGEST_PBUFFER,
+    MipmapTexture = ffi::MIPMAP_TEXTURE,
+    MipmapLevel = ffi::MIPMAP_LEVEL,
+    MultisampleResolve = ffi::MULTISAMPLE_RESOLVE,
+    PixelAspectRatio = ffi::PIXEL_ASPECT_RATIO,
+    RenderBuffer = ffi::RENDER_BUFFER,
+    SwapBehavior = ffi::SWAP_BEHAVIOR,
+    TextureFormat = ffi::TEXTURE_FORMAT,
+    TextureTarget = ffi::TEXTURE_TARGET,
+    VerticalResolution = ffi::VERTICAL_RESOLUTION,
+    Width = ffi::WIDTH,
 }
 
-
 pub trait SurfaceAttributeUtils: Surface {
-    fn set_surface_attribute(&mut self, attribute: SetSurfaceAttribute, value: EGLint) -> Result<(), Option<EGLError>> {
+    fn set_surface_attribute(
+        &mut self,
+        attribute: SetSurfaceAttribute,
+        value: EGLint,
+    ) -> Result<(), Option<EGLError>> {
         let result = unsafe {
-            ffi::SurfaceAttrib(self.display_config().raw_display(), self.raw_surface(), attribute as EGLint, value)
+            ffi::SurfaceAttrib(
+                self.display_config().raw_display(),
+                self.raw_surface(),
+                attribute as EGLint,
+                value,
+            )
         };
 
         if result == ffi::TRUE {
@@ -93,7 +100,12 @@ pub trait SurfaceAttributeUtils: Surface {
     fn query_attribute(&self, attribute: QueryableAttribute) -> QueryResult<EGLint> {
         let mut value = 0;
         let result = unsafe {
-            ffi::QuerySurface(self.display_config().raw_display(), self.raw_surface(), attribute as EGLint, &mut value)
+            ffi::QuerySurface(
+                self.display_config().raw_display(),
+                self.raw_surface(),
+                attribute as EGLint,
+                &mut value,
+            )
         };
 
         if result == ffi::TRUE {
@@ -103,12 +115,22 @@ pub trait SurfaceAttributeUtils: Surface {
         }
     }
 
-    fn query_positive_integer(&self, attribute: QueryableAttribute) -> QueryResult<PositiveInteger> {
-        Ok(PositiveInteger::try_convert(self.query_attribute(attribute)?)?)
+    fn query_positive_integer(
+        &self,
+        attribute: QueryableAttribute,
+    ) -> QueryResult<PositiveInteger> {
+        Ok(PositiveInteger::try_convert(
+            self.query_attribute(attribute)?,
+        )?)
     }
 
-    fn query_unsigned_integer(&self, attribute: QueryableAttribute) -> QueryResult<UnsignedInteger> {
-        Ok(UnsignedInteger::try_convert(self.query_attribute(attribute)?)?)
+    fn query_unsigned_integer(
+        &self,
+        attribute: QueryableAttribute,
+    ) -> QueryResult<UnsignedInteger> {
+        Ok(UnsignedInteger::try_convert(
+            self.query_attribute(attribute)?,
+        )?)
     }
 
     fn query_boolean(&self, attribute: QueryableAttribute) -> Result<bool, QueryError> {
@@ -154,13 +176,12 @@ pub trait Texture: SurfaceAttributeUtils {
         let value = self.query_attribute(QueryableAttribute::TextureFormat)?;
 
         match value as EGLenum {
-            ffi::TEXTURE_RGB  => Ok(TextureFormat::RGB),
+            ffi::TEXTURE_RGB => Ok(TextureFormat::RGB),
             ffi::TEXTURE_RGBA => Ok(TextureFormat::RGBA),
-            ffi::NO_TEXTURE   => Ok(TextureFormat::NoTexture),
-            _                 => Err(QueryError::EnumError),
+            ffi::NO_TEXTURE => Ok(TextureFormat::NoTexture),
+            _ => Err(QueryError::EnumError),
         }
     }
-
 
     fn texture_target(&self) -> QueryResult<TextureTarget> {
         let value = self.query_attribute(QueryableAttribute::TextureTarget)?;
@@ -168,7 +189,7 @@ pub trait Texture: SurfaceAttributeUtils {
         match value as EGLenum {
             ffi::TEXTURE_2D => Ok(TextureTarget::Texture2D),
             ffi::NO_TEXTURE => Ok(TextureTarget::NoTexture),
-            _               => Err(QueryError::EnumError),
+            _ => Err(QueryError::EnumError),
         }
     }
 
@@ -185,8 +206,14 @@ pub trait MultisampleResolve: SurfaceAttributeUtils {
     // TODO: check that surface config supports `MultisampleResolveValue::ResolveBox`
 
     /// Default value: `MultisampleResolveValue::ResolveDefault`
-    fn set_multisample_resolve(&mut self, multisample_resolve: MultisampleResolveValue) -> Result<(), Option<EGLError>> {
-        self.set_surface_attribute(SetSurfaceAttribute::MultisampleResolve, multisample_resolve as EGLint)
+    fn set_multisample_resolve(
+        &mut self,
+        multisample_resolve: MultisampleResolveValue,
+    ) -> Result<(), Option<EGLError>> {
+        self.set_surface_attribute(
+            SetSurfaceAttribute::MultisampleResolve,
+            multisample_resolve as EGLint,
+        )
     }
 
     fn multisample_resolve(&self) -> QueryResult<MultisampleResolveValue> {
@@ -194,7 +221,7 @@ pub trait MultisampleResolve: SurfaceAttributeUtils {
 
         match value as EGLenum {
             ffi::MULTISAMPLE_RESOLVE_DEFAULT => Ok(MultisampleResolveValue::ResolveDefault),
-            ffi::MULTISAMPLE_RESOLVE_BOX     => Ok(MultisampleResolveValue::ResolveBox),
+            ffi::MULTISAMPLE_RESOLVE_BOX => Ok(MultisampleResolveValue::ResolveBox),
             _ => Err(QueryError::EnumError),
         }
     }
@@ -204,7 +231,10 @@ pub trait SwapBehavior: SurfaceAttributeUtils {
     // TODO: check that surface config supports `SwapBuffersValue::BufferPreserved`
 
     /// Default value is EGL implementation defined.
-    fn set_swap_behavior(&mut self, swap_behavior: SwapBehaviorValue) -> Result<(), Option<EGLError>> {
+    fn set_swap_behavior(
+        &mut self,
+        swap_behavior: SwapBehaviorValue,
+    ) -> Result<(), Option<EGLError>> {
         self.set_surface_attribute(SetSurfaceAttribute::SwapBehavior, swap_behavior as EGLint)
     }
 
@@ -247,7 +277,7 @@ pub trait WindowAttributes: SurfaceAttributeUtils {
         let value = self.query_attribute(QueryableAttribute::RenderBuffer)?;
 
         match value as EGLenum {
-            ffi::BACK_BUFFER   => Ok(RenderBuffer::BackBuffer),
+            ffi::BACK_BUFFER => Ok(RenderBuffer::BackBuffer),
             ffi::SINGLE_BUFFER => Ok(RenderBuffer::SingleBuffer),
             _ => Err(QueryError::EnumError),
         }

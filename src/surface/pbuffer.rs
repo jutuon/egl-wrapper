@@ -1,4 +1,3 @@
-
 use std::marker::PhantomData;
 
 use egl_sys::ffi;
@@ -9,21 +8,10 @@ use utils::{AttributeListBuilder, UnsignedInteger};
 
 use error::EGLError;
 
-use super::{
-    Surface,
-    destroy_surface,
-};
+use super::{destroy_surface, Surface};
 
-use super::attribute::{
-    TextureFormat,
-    TextureTarget,
-    CommonAttributes,
-    SurfaceAttributeUtils,
-    MultisampleResolve,
-    SwapBehavior,
-    Texture,
-    LargestPbuffer,
-};
+use super::attribute::{CommonAttributes, LargestPbuffer, MultisampleResolve,
+                       SurfaceAttributeUtils, SwapBehavior, Texture, TextureFormat, TextureTarget};
 
 #[derive(Debug)]
 pub struct PbufferSurface {
@@ -31,7 +19,6 @@ pub struct PbufferSurface {
     raw_surface: ffi::types::EGLSurface,
     _marker: PhantomData<ffi::types::EGLSurface>,
 }
-
 
 impl Surface for PbufferSurface {
     fn raw_surface(&self) -> ffi::types::EGLSurface {
@@ -45,17 +32,17 @@ impl Surface for PbufferSurface {
 
 impl Drop for PbufferSurface {
     fn drop(&mut self) {
-       destroy_surface(self)
+        destroy_surface(self)
     }
 }
 
-impl SurfaceAttributeUtils  for PbufferSurface {}
-impl CommonAttributes       for PbufferSurface {}
-impl MultisampleResolve     for PbufferSurface {}
-impl SwapBehavior           for PbufferSurface {}
+impl SurfaceAttributeUtils for PbufferSurface {}
+impl CommonAttributes for PbufferSurface {}
+impl MultisampleResolve for PbufferSurface {}
+impl SwapBehavior for PbufferSurface {}
 
-impl Texture                for PbufferSurface {}
-impl LargestPbuffer         for PbufferSurface {}
+impl Texture for PbufferSurface {}
+impl LargestPbuffer for PbufferSurface {}
 
 pub struct PbufferSurfaceBuilder {
     display_config: DisplayConfig,
@@ -89,37 +76,33 @@ impl PbufferSurfaceBuilder {
 
     /// Default value: `TextureFormat::NoTexture`
     pub fn texture_format(&mut self, format: TextureFormat) -> &mut Self {
-        self.attributes.add(ffi::TEXTURE_FORMAT as EGLint, format as EGLint);
+        self.attributes
+            .add(ffi::TEXTURE_FORMAT as EGLint, format as EGLint);
         self
     }
 
     /// Default value: `TextureTarget::NoTexture`
     pub fn texture_target(&mut self, target: TextureTarget) -> &mut Self {
-        self.attributes.add(ffi::TEXTURE_TARGET as EGLint, target as EGLint);
+        self.attributes
+            .add(ffi::TEXTURE_TARGET as EGLint, target as EGLint);
         self
     }
 
     /// Default value: false
     pub fn mipmap_texture(&mut self, value: bool) -> &mut Self {
-        let value = if value {
-            ffi::TRUE
-        } else {
-            ffi::FALSE
-        };
+        let value = if value { ffi::TRUE } else { ffi::FALSE };
 
-        self.attributes.add(ffi::MIPMAP_TEXTURE as EGLint, value as EGLint);
+        self.attributes
+            .add(ffi::MIPMAP_TEXTURE as EGLint, value as EGLint);
         self
     }
 
     /// Default value: false
     pub fn largest_pbuffer(&mut self, value: bool) -> &mut Self {
-        let value = if value {
-            ffi::TRUE
-        } else {
-            ffi::FALSE
-        };
+        let value = if value { ffi::TRUE } else { ffi::FALSE };
 
-        self.attributes.add(ffi::LARGEST_PBUFFER as EGLint, value as EGLint);
+        self.attributes
+            .add(ffi::LARGEST_PBUFFER as EGLint, value as EGLint);
         self
     }
 
@@ -127,7 +110,11 @@ impl PbufferSurfaceBuilder {
         let attributes = self.attributes.build();
 
         let result = unsafe {
-            ffi::CreatePbufferSurface(self.display_config.raw_display(), self.display_config.raw_config(), attributes.ptr())
+            ffi::CreatePbufferSurface(
+                self.display_config.raw_display(),
+                self.display_config.raw_config(),
+                attributes.ptr(),
+            )
         };
 
         if result == ffi::NO_SURFACE {

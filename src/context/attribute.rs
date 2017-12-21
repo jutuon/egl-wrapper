@@ -1,35 +1,38 @@
-
 use egl_sys::ffi;
-use egl_sys::ffi::types::{ EGLint, EGLenum };
+use egl_sys::ffi::types::{EGLenum, EGLint};
 use egl_sys::extensions;
 
-use utils::{UnsignedInteger, PositiveInteger, QueryError, QueryResult};
+use utils::{PositiveInteger, QueryError, QueryResult, UnsignedInteger};
 
 use super::Context;
 
 #[derive(Debug)]
 #[repr(u32)]
 pub enum QueryableAttribute {
-    ConfigID                = ffi::CONFIG_ID,
-    ContextClientType       = ffi::CONTEXT_CLIENT_TYPE,
-    ContextClientVersion    = ffi::CONTEXT_CLIENT_VERSION,
-    RenderBuffer            = ffi::RENDER_BUFFER,
+    ConfigID = ffi::CONFIG_ID,
+    ContextClientType = ffi::CONTEXT_CLIENT_TYPE,
+    ContextClientVersion = ffi::CONTEXT_CLIENT_VERSION,
+    RenderBuffer = ffi::RENDER_BUFFER,
 }
 
 #[derive(Debug)]
 #[repr(u32)]
 pub enum ContextAPIType {
-    OpenGL    = ffi::OPENGL_API,
-    OpenGLES  = ffi::OPENGL_ES_API,
-    OpenVG    = ffi::OPENVG_API,
+    OpenGL = ffi::OPENGL_API,
+    OpenGLES = ffi::OPENGL_ES_API,
+    OpenVG = ffi::OPENVG_API,
 }
-
 
 pub trait ContextAttributeUtils: Context {
     fn query_attribute(&self, attribute: QueryableAttribute) -> QueryResult<EGLint> {
         let mut value = 0;
         let result = unsafe {
-            ffi::QueryContext(self.raw_display(), self.raw_context(), attribute as EGLint, &mut value)
+            ffi::QueryContext(
+                self.raw_display(),
+                self.raw_context(),
+                attribute as EGLint,
+                &mut value,
+            )
         };
 
         if result == ffi::TRUE {
@@ -39,12 +42,22 @@ pub trait ContextAttributeUtils: Context {
         }
     }
 
-    fn query_positive_integer(&self, attribute: QueryableAttribute) -> QueryResult<PositiveInteger> {
-        Ok(PositiveInteger::try_convert(self.query_attribute(attribute)?)?)
+    fn query_positive_integer(
+        &self,
+        attribute: QueryableAttribute,
+    ) -> QueryResult<PositiveInteger> {
+        Ok(PositiveInteger::try_convert(
+            self.query_attribute(attribute)?,
+        )?)
     }
 
-    fn query_unsigned_integer(&self, attribute: QueryableAttribute) -> QueryResult<UnsignedInteger> {
-        Ok(UnsignedInteger::try_convert(self.query_attribute(attribute)?)?)
+    fn query_unsigned_integer(
+        &self,
+        attribute: QueryableAttribute,
+    ) -> QueryResult<UnsignedInteger> {
+        Ok(UnsignedInteger::try_convert(
+            self.query_attribute(attribute)?,
+        )?)
     }
 
     fn query_boolean(&self, attribute: QueryableAttribute) -> Result<bool, QueryError> {
@@ -69,10 +82,10 @@ pub trait CommonAttributes: ContextAttributeUtils {
         let value = self.query_attribute(QueryableAttribute::ContextClientType)?;
 
         match value as EGLenum {
-            ffi::OPENGL_API     => Ok(ContextAPIType::OpenGL),
-            ffi::OPENGL_ES_API  => Ok(ContextAPIType::OpenGLES),
-            ffi::OPENVG_API     => Ok(ContextAPIType::OpenVG),
-            _                   => Err(QueryError::EnumError),
+            ffi::OPENGL_API => Ok(ContextAPIType::OpenGL),
+            ffi::OPENGL_ES_API => Ok(ContextAPIType::OpenGLES),
+            ffi::OPENVG_API => Ok(ContextAPIType::OpenVG),
+            _ => Err(QueryError::EnumError),
         }
     }
 }
@@ -89,11 +102,9 @@ pub trait AttributeOpenGLESVersion: ContextAttributeUtils {
 #[derive(Debug)]
 #[repr(u32)]
 pub enum OpenGLContextProfile {
-    Core        = extensions::CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
+    Core = extensions::CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
     Compability = extensions::CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT_KHR,
 }
-
-
 
 bitflags! {
     /// EGL_KHR_create_context
@@ -112,5 +123,5 @@ bitflags! {
 #[repr(u32)]
 pub enum ResetNotificationStrategy {
     NoResetNotification = extensions::NO_RESET_NOTIFICATION_KHR,
-    LoseContextOnReset  = extensions::LOSE_CONTEXT_ON_RESET_KHR,
+    LoseContextOnReset = extensions::LOSE_CONTEXT_ON_RESET_KHR,
 }

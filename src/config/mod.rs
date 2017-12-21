@@ -1,4 +1,3 @@
-
 pub mod client_api;
 pub mod search;
 pub mod attribute;
@@ -6,11 +5,12 @@ pub mod attribute;
 use std::vec;
 use std::sync::Arc;
 
-use egl_sys::{ ffi };
+use egl_sys::ffi;
 
-use display::{DisplayHandle, DisplayType, DisplayExtensionSupport};
-use context::gl::{ OpenGLContextBuilder, OpenGLContextBuilderEXT };
-use context::gles::{ OpenGLESContextBuilder, OpenGLESContextBuilderEXT, EGL14OpenGLESVersion, OpenGLESMajorVersionEXT };
+use display::{DisplayExtensionSupport, DisplayHandle, DisplayType};
+use context::gl::{OpenGLContextBuilder, OpenGLContextBuilderEXT};
+use context::gles::{EGL14OpenGLESVersion, OpenGLESContextBuilder, OpenGLESContextBuilderEXT,
+                    OpenGLESMajorVersionEXT};
 
 use self::attribute::*;
 use self::client_api::*;
@@ -38,7 +38,7 @@ pub struct Configs<'a, D: DisplayType + 'a> {
     raw_configs: Vec<ffi::types::EGLConfig>,
 }
 
-impl <'a, D: DisplayType + 'a> Configs<'a, D> {
+impl<'a, D: DisplayType + 'a> Configs<'a, D> {
     pub(crate) fn new(display: &'a D, raw_configs: Vec<ffi::types::EGLConfig>) -> Configs<'a, D> {
         Configs {
             display,
@@ -58,8 +58,11 @@ pub struct IntoIter<'a, D: DisplayType + 'a> {
     raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>,
 }
 
-impl <'a, D: DisplayType + 'a> IntoIter<'a, D> {
-    fn new(display: &'a D, raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>) -> IntoIter<'a, D> {
+impl<'a, D: DisplayType + 'a> IntoIter<'a, D> {
+    fn new(
+        display: &'a D,
+        raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>,
+    ) -> IntoIter<'a, D> {
         IntoIter {
             display,
             raw_configs_iter,
@@ -67,20 +70,18 @@ impl <'a, D: DisplayType + 'a> IntoIter<'a, D> {
     }
 }
 
-impl <'a, D: DisplayType + 'a> Iterator for IntoIter<'a, D> {
+impl<'a, D: DisplayType + 'a> Iterator for IntoIter<'a, D> {
     type Item = Config<'a, D>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.raw_configs_iter.next().map(|raw_config| {
-            Config {
-                display: self.display,
-                raw_config,
-            }
+        self.raw_configs_iter.next().map(|raw_config| Config {
+            display: self.display,
+            raw_config,
         })
     }
 }
 
-impl <'a, D: DisplayType + 'a> IntoIterator for Configs<'a, D> {
+impl<'a, D: DisplayType + 'a> IntoIterator for Configs<'a, D> {
     type Item = Config<'a, D>;
     type IntoIter = IntoIter<'a, D>;
 
@@ -95,7 +96,7 @@ pub struct Config<'a, D: DisplayType + 'a> {
     raw_config: ffi::types::EGLConfig,
 }
 
-impl <'a, D: DisplayType + 'a> Config<'a, D> {
+impl<'a, D: DisplayType + 'a> Config<'a, D> {
     fn into_display_config(self) -> DisplayConfig {
         DisplayConfig {
             display_handle: self.display.display_handle().clone(),
@@ -108,16 +109,16 @@ impl <'a, D: DisplayType + 'a> Config<'a, D> {
             Ok(surface_type) if surface_type.contains(SurfaceType::WINDOW) => {
                 Some(ConfigWindow::new(self.into_display_config()))
             }
-            _ => None
+            _ => None,
         }
     }
 
     pub fn opengl_context_builder(self) -> Option<OpenGLContextBuilder> {
         match self.client_api() {
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => {
-                Some(OpenGLContextBuilder::new(ConfigOpenGL::new(self.into_display_config())))
-            }
-            _ => None
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => Some(
+                OpenGLContextBuilder::new(ConfigOpenGL::new(self.into_display_config())),
+            ),
+            _ => None,
         }
     }
 
@@ -129,19 +130,28 @@ impl <'a, D: DisplayType + 'a> Config<'a, D> {
         }
 
         match self.client_api() {
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => {
-                Some(OpenGLContextBuilderEXT::new(ConfigOpenGL::new(self.into_display_config())))
-            }
-            _ => None
+            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => Some(
+                OpenGLContextBuilderEXT::new(ConfigOpenGL::new(self.into_display_config())),
+            ),
+            _ => None,
         }
     }
 
-    pub fn opengl_es_context_builder(self, version: EGL14OpenGLESVersion) -> Option<OpenGLESContextBuilder> {
+    pub fn opengl_es_context_builder(
+        self,
+        version: EGL14OpenGLESVersion,
+    ) -> Option<OpenGLESContextBuilder> {
         let mut builder = match self.client_api() {
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES) && version == EGL14OpenGLESVersion::Version1 => {
+            Ok(client_api)
+                if client_api.contains(ConfigClientAPI::OPENGL_ES)
+                    && version == EGL14OpenGLESVersion::Version1 =>
+            {
                 OpenGLESContextBuilder::new(ConfigOpenGLES::new(self.into_display_config()))
-            },
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES2) && version == EGL14OpenGLESVersion::Version2 => {
+            }
+            Ok(client_api)
+                if client_api.contains(ConfigClientAPI::OPENGL_ES2)
+                    && version == EGL14OpenGLESVersion::Version2 =>
+            {
                 OpenGLESContextBuilder::new(ConfigOpenGLES::new(self.into_display_config()))
             }
             _ => return None,
@@ -152,19 +162,31 @@ impl <'a, D: DisplayType + 'a> Config<'a, D> {
     }
 
     /// EGL_KHR_create_context
-    pub fn opengl_es_context_builder_ext(self, version: OpenGLESMajorVersionEXT) -> Option<OpenGLESContextBuilderEXT> {
+    pub fn opengl_es_context_builder_ext(
+        self,
+        version: OpenGLESMajorVersionEXT,
+    ) -> Option<OpenGLESContextBuilderEXT> {
         if !self.display_extensions().create_context() {
             return None;
         }
 
         let mut builder = match self.client_api() {
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES) && version == OpenGLESMajorVersionEXT::Version1 => {
+            Ok(client_api)
+                if client_api.contains(ConfigClientAPI::OPENGL_ES)
+                    && version == OpenGLESMajorVersionEXT::Version1 =>
+            {
                 OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
-            },
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES2) && version == OpenGLESMajorVersionEXT::Version2 => {
+            }
+            Ok(client_api)
+                if client_api.contains(ConfigClientAPI::OPENGL_ES2)
+                    && version == OpenGLESMajorVersionEXT::Version2 =>
+            {
                 OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
-            },
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL_ES3_KHR) && version == OpenGLESMajorVersionEXT::Version3 => {
+            }
+            Ok(client_api)
+                if client_api.contains(ConfigClientAPI::OPENGL_ES3_KHR)
+                    && version == OpenGLESMajorVersionEXT::Version3 =>
+            {
                 OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
             }
             _ => return None,
@@ -182,7 +204,7 @@ impl <'a, D: DisplayType + 'a> Config<'a, D> {
     }
 }
 
-impl <'a, D: DisplayType + 'a> ConfigUtils for Config<'a, D> {
+impl<'a, D: DisplayType + 'a> ConfigUtils for Config<'a, D> {
     fn raw_config(&self) -> ffi::types::EGLConfig {
         self.raw_config
     }
@@ -196,19 +218,18 @@ impl <'a, D: DisplayType + 'a> ConfigUtils for Config<'a, D> {
     }
 }
 
-impl <'a, D: DisplayType + 'a> Color             for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> AlphaMaskBuffer   for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> Pbuffer           for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> FramebufferLevel  for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> ClientAPI         for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> NativeRenderable  for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> SlowConfig        for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> Surface           for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> SwapInterval      for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> MultisampleBuffer for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> DepthBuffer       for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> StencilBuffer     for Config<'a, D> {}
-impl <'a, D: DisplayType + 'a> TransparentColor  for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> Color for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> AlphaMaskBuffer for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> Pbuffer for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> FramebufferLevel for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> ClientAPI for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> NativeRenderable for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> SlowConfig for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> Surface for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> SwapInterval for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> MultisampleBuffer for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> DepthBuffer for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> StencilBuffer for Config<'a, D> {}
+impl<'a, D: DisplayType + 'a> TransparentColor for Config<'a, D> {}
 
-impl <'a, D: DisplayType + 'a> AllAttributes     for Config<'a, D> {}
-
+impl<'a, D: DisplayType + 'a> AllAttributes for Config<'a, D> {}

@@ -1,4 +1,3 @@
-
 use egl_sys::ffi::types::EGLenum;
 use egl_sys::ffi;
 
@@ -24,17 +23,16 @@ pub enum EGLError {
 impl EGLError {
     /// Returns `Some(error)` if there is an error.
     pub(crate) fn check_errors() -> Option<EGLError> {
-        let result = unsafe {
-            ffi::GetError()
-        };
+        let result = unsafe { ffi::GetError() };
 
         if result < 0 {
             eprintln!("egl_wrapper: unknown EGL error value: {}", result);
-            return Some(EGLError::UnknownError)
+            return Some(EGLError::UnknownError);
         }
 
         let result = result as EGLenum;
 
+        #[cfg_attr(rustfmt, rustfmt_skip)]
         let error = match result {
             // TODO: panic if there is no errors?
             ffi::SUCCESS             => return None,

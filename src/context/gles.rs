@@ -1,25 +1,17 @@
-
-
-
 //! OpenGL ES context
 
 use std::marker::PhantomData;
-
 
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 use egl_sys::extensions;
 
-use context::{ Context, RawContextUtils };
+use context::{Context, RawContextUtils};
 use config::client_api::ConfigOpenGLES;
 use utils::{AttributeListBuilder, UnsignedInteger};
 use error::EGLError;
 
-use super::attribute::{
-    ContextAttributeUtils,
-    CommonAttributes,
-    AttributeOpenGLESVersion,
-};
+use super::attribute::{AttributeOpenGLESVersion, CommonAttributes, ContextAttributeUtils};
 
 #[derive(Debug, PartialEq)]
 #[repr(u32)]
@@ -37,7 +29,6 @@ pub enum OpenGLESMajorVersionEXT {
     Version3 = 3,
 }
 
-
 #[derive(Debug)]
 pub struct OpenGLESContext {
     config_opengl: ConfigOpenGLES,
@@ -46,7 +37,7 @@ pub struct OpenGLESContext {
 }
 
 impl ContextAttributeUtils for OpenGLESContext {}
-impl CommonAttributes      for OpenGLESContext {}
+impl CommonAttributes for OpenGLESContext {}
 
 impl AttributeOpenGLESVersion for OpenGLESContext {}
 
@@ -85,7 +76,8 @@ impl OpenGLESContextBuilder {
 
     /// Default value: 1
     pub(crate) fn set_context_client_version(&mut self, version: EGL14OpenGLESVersion) {
-        self.attributes.add(ffi::CONTEXT_CLIENT_VERSION as EGLint, version as EGLint);
+        self.attributes
+            .add(ffi::CONTEXT_CLIENT_VERSION as EGLint, version as EGLint);
     }
 
     /// This function calls `bind_api` before creating the context.
@@ -99,7 +91,7 @@ impl OpenGLESContextBuilder {
                 self.config_opengl.display_config().raw_display(),
                 self.config_opengl.display_config().raw_config(),
                 ffi::NO_CONTEXT,
-                attribute_list.ptr()
+                attribute_list.ptr(),
             )
         };
 
@@ -119,7 +111,6 @@ impl OpenGLESContextBuilder {
 
 // EGL_KHR_create_context extension implementation
 
-
 pub struct OpenGLESContextBuilderEXT(OpenGLESContextBuilder);
 
 impl OpenGLESContextBuilderEXT {
@@ -129,12 +120,18 @@ impl OpenGLESContextBuilderEXT {
 
     /// Default value: `OpenGLESMajorVersionEXT::Version1`
     pub(crate) fn set_major_version(&mut self, major: OpenGLESMajorVersionEXT) {
-        self.0.attributes.add(extensions::CONTEXT_MAJOR_VERSION_KHR as EGLint, major as EGLint);
+        self.0.attributes.add(
+            extensions::CONTEXT_MAJOR_VERSION_KHR as EGLint,
+            major as EGLint,
+        );
     }
 
     /// Default value: 0
     pub fn set_minor_version(&mut self, minor: UnsignedInteger) {
-        self.0.attributes.add(extensions::CONTEXT_MINOR_VERSION_KHR as EGLint, minor.value());
+        self.0.attributes.add(
+            extensions::CONTEXT_MINOR_VERSION_KHR as EGLint,
+            minor.value(),
+        );
     }
 
     /// Default value: false
@@ -145,7 +142,9 @@ impl OpenGLESContextBuilderEXT {
             0
         };
 
-        self.0.attributes.add(extensions::CONTEXT_FLAGS_KHR as EGLint, value);
+        self.0
+            .attributes
+            .add(extensions::CONTEXT_FLAGS_KHR as EGLint, value);
     }
 
     /// This function calls `bind_api` before creating the context.

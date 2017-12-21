@@ -1,5 +1,3 @@
-
-
 use super::DisplayConfig;
 
 macro_rules! config_type {

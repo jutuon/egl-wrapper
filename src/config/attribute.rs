@@ -1,22 +1,27 @@
-
 //! Traits and data types for config attributes.
 
-use egl_sys::{ extensions, ffi };
-use egl_sys::ffi::types::{ EGLint, EGLenum, EGLBoolean };
+use egl_sys::{extensions, ffi};
+use egl_sys::ffi::types::{EGLBoolean, EGLenum, EGLint};
 
-use utils::{ PositiveInteger, IntegerError, UnsignedInteger, QueryError};
-use display::{ DisplayExtensionSupport};
+use utils::{IntegerError, PositiveInteger, QueryError, UnsignedInteger};
+use display::DisplayExtensionSupport;
 
 /// Color buffer type and bit counts of colors.
 #[derive(Debug)]
 pub enum ColorBuffer {
     RGB(PositiveInteger, PositiveInteger, PositiveInteger),
-    RGBA(PositiveInteger, PositiveInteger, PositiveInteger, PositiveInteger),
+    RGBA(
+        PositiveInteger,
+        PositiveInteger,
+        PositiveInteger,
+        PositiveInteger,
+    ),
     Luminance(PositiveInteger),
     LuminanceAndAlpha(PositiveInteger, PositiveInteger),
 }
 
 #[repr(u32)]
+#[cfg_attr(rustfmt, rustfmt_skip)]
 pub enum ConfigAttribute {
     BufferSize          = ffi::BUFFER_SIZE,
     RedSize             = ffi::RED_SIZE,
@@ -102,16 +107,12 @@ pub struct ConfigInfo {
     pub min_swap_interval: UnsignedInteger,
 }
 
-
-
 type ConfigResult<T> = Result<T, QueryError>;
-
 
 pub trait ConfigUtils: Sized {
     fn raw_config(&self) -> ffi::types::EGLConfig;
     fn raw_display(&self) -> ffi::types::EGLDisplay;
     fn display_extensions(&self) -> &DisplayExtensionSupport;
-
 
     fn query_attrib(&self, attribute: ConfigAttribute) -> ConfigResult<EGLint> {
         let attribute = attribute as EGLint;
@@ -123,13 +124,16 @@ pub trait ConfigUtils: Sized {
         };
 
         if result == ffi::FALSE {
-            return Err(QueryError::QueryError)
+            return Err(QueryError::QueryError);
         }
 
         Ok(value)
     }
 
-    fn query_positive_integer_or_zero(&self, attribute: ConfigAttribute) -> ConfigResult<Option<PositiveInteger>> {
+    fn query_positive_integer_or_zero(
+        &self,
+        attribute: ConfigAttribute,
+    ) -> ConfigResult<Option<PositiveInteger>> {
         let value = self.query_attrib(attribute)?;
 
         match PositiveInteger::try_convert(value) {
@@ -170,11 +174,9 @@ pub trait Color: ConfigUtils {
                 match PositiveInteger::try_convert(a) {
                     Ok(alpha) => Ok(ColorBuffer::RGBA(r, g, b, alpha)),
                     Err(IntegerError::Zero) => Ok(ColorBuffer::RGB(r, g, b)),
-                    Err(error) => Err(
-                        QueryError::IntegerError(error)
-                    ),
+                    Err(error) => Err(QueryError::IntegerError(error)),
                 }
-            },
+            }
             ffi::LUMINANCE_BUFFER => {
                 let l = self.query_positive_integer(ConfigAttribute::LuminanceSize)?;
 
@@ -183,12 +185,10 @@ pub trait Color: ConfigUtils {
                 match PositiveInteger::try_convert(a) {
                     Ok(alpha) => Ok(ColorBuffer::LuminanceAndAlpha(l, alpha)),
                     Err(IntegerError::Zero) => Ok(ColorBuffer::Luminance(l)),
-                    Err(error) => Err(
-                        QueryError::IntegerError(error)
-                    ),
+                    Err(error) => Err(QueryError::IntegerError(error)),
                 }
             }
-            _ => Err(QueryError::EnumError)
+            _ => Err(QueryError::EnumError),
         }
     }
 
@@ -340,7 +340,9 @@ pub trait Pbuffer: ConfigUtils {
 }
 
 pub trait TransparentColor: ConfigUtils {
-    fn transparent_rgb(&self) -> ConfigResult<Option<(UnsignedInteger, UnsignedInteger, UnsignedInteger)>> {
+    fn transparent_rgb(
+        &self,
+    ) -> ConfigResult<Option<(UnsignedInteger, UnsignedInteger, UnsignedInteger)>> {
         let transparent_type = self.query_attrib(ConfigAttribute::TransparentType)?;
 
         match transparent_type as EGLenum {
@@ -352,29 +354,30 @@ pub trait TransparentColor: ConfigUtils {
                 // TODO: check other end of the value range
 
                 Ok(Some((r, g, b)))
-            },
+            }
             ffi::NONE => Ok(None),
             _ => Err(QueryError::EnumError),
         }
     }
 }
 
-pub trait AllAttributes where
-    Self:   ConfigUtils +
-            Color +
-            Pbuffer +
-            FramebufferLevel +
-            ClientAPI +
-            NativeRenderable +
-            SlowConfig +
-            Surface +
-            SwapInterval +
-            MultisampleBuffer +
-            DepthBuffer +
-            AlphaMaskBuffer +
-            StencilBuffer +
-            TransparentColor {
-
+pub trait AllAttributes
+where
+    Self: ConfigUtils
+        + Color
+        + Pbuffer
+        + FramebufferLevel
+        + ClientAPI
+        + NativeRenderable
+        + SlowConfig
+        + Surface
+        + SwapInterval
+        + MultisampleBuffer
+        + DepthBuffer
+        + AlphaMaskBuffer
+        + StencilBuffer
+        + TransparentColor,
+{
     fn all(&self) -> ConfigResult<ConfigInfo> {
         Ok(ConfigInfo {
             config_id: self.config_id()?,

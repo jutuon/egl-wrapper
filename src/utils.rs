@@ -1,4 +1,3 @@
-
 use std::fmt;
 
 use egl_sys::ffi::types::EGLint;
@@ -45,7 +44,6 @@ pub enum IntegerError {
     Negative,
 }
 
-
 #[derive(Debug, Copy, Clone)]
 pub struct UnsignedInteger(EGLint);
 
@@ -71,7 +69,6 @@ impl UnsignedInteger {
     }
 }
 
-
 impl fmt::Display for UnsignedInteger {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{}", self.value())
@@ -79,8 +76,6 @@ impl fmt::Display for UnsignedInteger {
 }
 
 // TODO: tests for UnsignedInteger
-
-
 
 pub(crate) struct AttributeListBuilder(Vec<EGLint>);
 
@@ -99,7 +94,6 @@ impl AttributeListBuilder {
         AttributeList(self.0)
     }
 }
-
 
 pub struct AttributeList(Vec<EGLint>);
 
@@ -122,7 +116,6 @@ pub trait AttributeListTrait {
 
     fn attribute_list_ptr(&self) -> *const Self::T;
 }
-
 
 #[derive(Debug)]
 pub enum QueryError {

@@ -1,4 +1,3 @@
-
 //! OpenGL context
 
 use std::marker::PhantomData;
@@ -7,18 +6,13 @@ use egl_sys::ffi::types::EGLint;
 use egl_sys::ffi;
 use egl_sys::extensions;
 
-use context::{ Context, RawContextUtils };
+use context::{Context, RawContextUtils};
 use config::client_api::ConfigOpenGL;
 use utils::{AttributeListBuilder, PositiveInteger, UnsignedInteger};
 use error::EGLError;
 
-use super::attribute::{
-    ContextAttributeUtils,
-    CommonAttributes,
-    OpenGLContextFlags,
-    OpenGLContextProfile,
-    ResetNotificationStrategy,
-};
+use super::attribute::{CommonAttributes, ContextAttributeUtils, OpenGLContextFlags,
+                       OpenGLContextProfile, ResetNotificationStrategy};
 
 #[derive(Debug)]
 pub struct OpenGLContext {
@@ -28,7 +22,7 @@ pub struct OpenGLContext {
 }
 
 impl ContextAttributeUtils for OpenGLContext {}
-impl CommonAttributes      for OpenGLContext {}
+impl CommonAttributes for OpenGLContext {}
 
 impl Drop for OpenGLContext {
     fn drop(&mut self) {
@@ -74,7 +68,7 @@ impl OpenGLContextBuilder {
                 self.config_opengl.display_config().raw_display(),
                 self.config_opengl.display_config().raw_config(),
                 ffi::NO_CONTEXT,
-                attribute_list.ptr()
+                attribute_list.ptr(),
             )
         };
 
@@ -92,7 +86,6 @@ impl OpenGLContextBuilder {
     }
 }
 
-
 // EGL_KHR_create_context extension implementation
 
 /// OpenGL context builder with EGL_KHR_create_context extension attributes.
@@ -101,26 +94,34 @@ pub struct OpenGLContextBuilderEXT {
 }
 
 impl OpenGLContextBuilderEXT {
-
     pub(crate) fn new(config_opengl: ConfigOpenGL) -> OpenGLContextBuilderEXT {
         OpenGLContextBuilderEXT {
-            builder:OpenGLContextBuilder::new(config_opengl),
+            builder: OpenGLContextBuilder::new(config_opengl),
         }
     }
 
     /// Default value: 1
     pub fn set_major_version(&mut self, major: PositiveInteger) {
-        self.builder.attributes.add(extensions::CONTEXT_MAJOR_VERSION_KHR as EGLint, major.value());
+        self.builder.attributes.add(
+            extensions::CONTEXT_MAJOR_VERSION_KHR as EGLint,
+            major.value(),
+        );
     }
 
     /// Default value: 0
     pub fn set_minor_version(&mut self, minor: UnsignedInteger) {
-        self.builder.attributes.add(extensions::CONTEXT_MINOR_VERSION_KHR as EGLint, minor.value());
+        self.builder.attributes.add(
+            extensions::CONTEXT_MINOR_VERSION_KHR as EGLint,
+            minor.value(),
+        );
     }
 
     /// Default value: `OpenGLContextProfile::Core`
     pub fn set_profile(&mut self, value: OpenGLContextProfile) {
-        self.builder.attributes.add(extensions::CONTEXT_OPENGL_PROFILE_MASK_KHR as EGLint, value as EGLint);
+        self.builder.attributes.add(
+            extensions::CONTEXT_OPENGL_PROFILE_MASK_KHR as EGLint,
+            value as EGLint,
+        );
     }
 
     /// Default value: 0
@@ -128,12 +129,18 @@ impl OpenGLContextBuilderEXT {
     /// `OpenGLContextFlags::FORWARD_COMPATIBLE` is supported only with
     /// OpenGL 3.0 or later.
     pub fn set_context_flags(&mut self, value: OpenGLContextFlags) {
-        self.builder.attributes.add(extensions::CONTEXT_FLAGS_KHR as EGLint, value.bits() as EGLint);
+        self.builder.attributes.add(
+            extensions::CONTEXT_FLAGS_KHR as EGLint,
+            value.bits() as EGLint,
+        );
     }
 
     /// Default value: `ResetNotificationStrategy::NoResetNotification`
     pub fn set_reset_notification_strategy(&mut self, strategy: ResetNotificationStrategy) {
-        self.builder.attributes.add(extensions::CONTEXT_OPENGL_RESET_NOTIFICATION_STRATEGY_KHR as EGLint, strategy as EGLint);
+        self.builder.attributes.add(
+            extensions::CONTEXT_OPENGL_RESET_NOTIFICATION_STRATEGY_KHR as EGLint,
+            strategy as EGLint,
+        );
     }
 
     /// This function calls `bind_api` before creating the context.
