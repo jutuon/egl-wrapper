@@ -140,7 +140,7 @@ impl DisplayBuilderWithClientExtensions {
         DisplayBuilder {}
     }
 
-    pub fn build_ext_platform_x11<T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=x11::xlib::Window>>(self, native: T, list: EXTPlatformX11AttributeListBuilder) -> Result<Display<EXTPlatformX11<T>>, (Self, DisplayCreationError)> {
+    pub fn build_ext_platform_x11<T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=*mut x11::xlib::Window>>(self, native: T, list: EXTPlatformX11AttributeListBuilder) -> Result<Display<EXTPlatformX11<T>>, (Self, DisplayCreationError)> {
         if !self.client_extensions.ext_platform_x11 {
             return Err((self,DisplayCreationError::PlatformExtensionNotSupported));
         }

@@ -86,11 +86,11 @@ impl <T: RawNativeDisplay<T=ffi::types::NativeDisplayType> + RawNativeWindow<T=f
 // Extension EGL_EXT_platform_x11 support
 
 #[derive(Debug)]
-pub struct EXTPlatformX11<T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=x11::xlib::Window>> {
+pub struct EXTPlatformX11<T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=*mut x11::xlib::Window>> {
     x11: T,
 }
 
-impl <T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=x11::xlib::Window>> EXTPlatformX11<T> {
+impl <T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=*mut x11::xlib::Window>> EXTPlatformX11<T> {
     pub(crate) fn get_display(native_display: T, attribute_list: EXTPlatformX11AttributeListBuilder) -> Result<Display<Self>, DisplayCreationError> {
         let attribute_list = attribute_list.0.build();
 
@@ -145,7 +145,7 @@ impl EXTPlatformX11AttributeListBuilder {
 }
 
 
-impl <T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=x11::xlib::Window>> PlatformDisplay for EXTPlatformX11<T> {}
+impl <T: RawNativeDisplay<T=*mut x11::xlib::Display> + RawNativeWindow<T=*mut x11::xlib::Window>> PlatformDisplay for EXTPlatformX11<T> {}
 
 pub unsafe trait RawNativeDisplay {
     type T;
