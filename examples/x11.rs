@@ -30,8 +30,6 @@ fn main() {
     x11();
 }
 
-// TODO: Create X11 Window with native visual ID from EGL Config
-
 
 #[derive(Debug)]
 struct X11 {
@@ -57,26 +55,64 @@ impl X11 {
         })
     }
 
-    fn create_window(&mut self) -> Result<(), ()> {
-        let mut window_attributes = xlib::XSetWindowAttributes {
-            background_pixmap: 0,
-            background_pixel: 0,
-            border_pixmap: 0,
-            border_pixel: 0,
-            bit_gravity: 0,
-            win_gravity: 0,
-            backing_store: 0,
-            backing_planes: 0,
-            backing_pixel: 0,
-            save_under: 0,
-            event_mask: 0,
-            do_not_propagate_mask: 0,
-            override_redirect: 0,
-            colormap: 0,
-            cursor: 0,
-        };
+    fn create_window(&mut self, visual_id: xlib::VisualID) -> Result<(), ()> {
+
+        println!("visual id: {}", visual_id);
 
         unsafe {
+            let mut visual_info_template: xlib::XVisualInfo = mem::zeroed();
+
+            visual_info_template.visualid = visual_id;
+
+            let mut visual_count = 0;
+
+            let mut visual_info_ptr: *mut xlib::XVisualInfo = xlib::XGetVisualInfo(
+                self.raw_display,
+                xlib::VisualIDMask,
+                &mut visual_info_template,
+                &mut visual_count
+            );
+
+            println!("visual_count: {}", visual_count);
+
+            if visual_info_ptr.is_null() {
+                println!("error: visual info ptr is null");
+                return Err(())
+            }
+
+            let mut colormap: xlib::Colormap = xlib::XCreateColormap(
+                self.raw_display,
+                xlib::XRootWindow(self.raw_display, 0),
+                (*visual_info_ptr).visual,
+                xlib::AllocNone,
+            );
+
+            if colormap == 0 {
+                println!("error: colormap is null");
+                return Err(())
+            }
+
+            println!("colormap id: {}", colormap);
+
+            let mut window_attributes = xlib::XSetWindowAttributes {
+                background_pixmap: 0,
+                background_pixel: 0,
+                border_pixmap: 0,
+                border_pixel: 0,
+                bit_gravity: 0,
+                win_gravity: 0,
+                backing_store: 0,
+                backing_planes: 0,
+                backing_pixel: 0,
+                save_under: 0,
+                event_mask: 0,
+                do_not_propagate_mask: 0,
+                override_redirect: 0,
+                colormap,
+                cursor: 0,
+            };
+
+
             let window = xlib::XCreateWindow(
                 self.raw_display,
                 xlib::XDefaultRootWindow(self.raw_display),
@@ -85,12 +121,14 @@ impl X11 {
                 640,
                 480,
                 0,
-                xlib::CopyFromParent,
-                xlib::CopyFromParent as u32,
-                xlib::CopyFromParent as *mut xlib::Visual,
-                0,
+                (*visual_info_ptr).depth,
+                xlib::InputOutput as u32,
+                (*visual_info_ptr).visual,
+                xlib::CWColormap,
                 &mut window_attributes
             );
+
+            println!("window id: {}", window);
 
             xlib::XSelectInput(self.raw_display, window, xlib::StructureNotifyMask);
 
@@ -164,14 +202,18 @@ fn x11() {
             return
         }
 
-        let (config_window, opengl_context_builder) = {
+        let (config_window, opengl_context_builder, visual_id) = {
+            use egl_wrapper::config::attribute::NativeRenderable;
+
             let config = search_configs(&display).into_iter().next().unwrap();
             let config_window = config.clone().window_surface().unwrap();
-            let opengl_context_builder = config.opengl_context_builder().unwrap();
-            (config_window, opengl_context_builder)
+            let opengl_context_builder = config.clone().opengl_context_builder().unwrap();
+
+            let visual_id = config.native_visual_id().unwrap().unwrap();
+            (config_window, opengl_context_builder, visual_id)
         };
 
-        display.platform_display_mut().native_mut().create_window().unwrap();
+        display.platform_display_mut().native_mut().create_window(visual_id as xlib::XID).unwrap();
 
         let attributes = WindowSurfaceAttributeListBuilder::new().build();
         let egl_window_surface = display.platform_display().get_platform_window_surface(config_window, attributes).unwrap();
