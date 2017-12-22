@@ -12,8 +12,6 @@ use super::{destroy_surface, Surface};
 use super::attribute::{CommonAttributes, MultisampleResolve, RenderBuffer, SurfaceAttributeUtils,
                        SwapBehavior, WindowAttributes};
 
-
-
 #[derive(Debug)]
 pub struct WindowSurface<T, P: Platform> {
     optional_native_window_handle: T,

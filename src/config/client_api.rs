@@ -2,7 +2,6 @@ use super::DisplayConfig;
 
 use platform::Platform;
 
-
 macro_rules! config_type {
     ( $name: ident ) => {
         #[derive(Debug, Clone)]

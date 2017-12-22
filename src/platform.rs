@@ -25,7 +25,10 @@ pub struct DefaultPlatform<T> {
 }
 
 impl<T> DefaultPlatform<T> {
-    pub(crate) fn get_display(native_display: NativeDisplayType, optional_native_display_handle: T) -> Result<Display<Self>, DisplayCreationError> {
+    pub(crate) fn get_display(
+        native_display: NativeDisplayType,
+        optional_native_display_handle: T,
+    ) -> Result<Display<Self>, DisplayCreationError> {
         let raw_display = unsafe { ffi::GetDisplay(native_display) };
 
         if raw_display == ffi::NO_DISPLAY {
@@ -57,7 +60,11 @@ impl<T> DefaultPlatform<T> {
             return Err(WindowCreationError::EGLError(EGLError::check_errors()));
         }
 
-        Ok(WindowSurface::new(optional_native_window_handle, config_window, raw_surface))
+        Ok(WindowSurface::new(
+            optional_native_window_handle,
+            config_window,
+            raw_surface,
+        ))
     }
 
     pub fn optional_native_display(&self) -> &T {
@@ -70,7 +77,6 @@ impl<T> DefaultPlatform<T> {
 }
 
 impl<T> Platform for DefaultPlatform<T> {}
-
 
 #[derive(Debug)]
 /// EGL extension EGL_EXT_platform_base platforms.
@@ -85,7 +91,6 @@ pub enum EXTPlatformType {
     Wayland = extensions::PLATFORM_WAYLAND_EXT,
 }
 
-
 impl<T> EXTPlatform<T> {
     pub(crate) fn get_display(
         platform_type: EXTPlatformType,
@@ -93,7 +98,6 @@ impl<T> EXTPlatform<T> {
         optional_native_display_handle: T,
         attribute_list: EXTPlatformAttributeList,
     ) -> Result<Display<Self>, DisplayCreationError> {
-
         let raw_display = unsafe {
             extensions::GetPlatformDisplayEXT(
                 platform_type as EGLenum,
@@ -131,7 +135,11 @@ impl<T> EXTPlatform<T> {
             return Err(WindowCreationError::EGLError(EGLError::check_errors()));
         }
 
-        Ok(WindowSurface::new(optional_native_window_handle, config_window, raw_surface))
+        Ok(WindowSurface::new(
+            optional_native_window_handle,
+            config_window,
+            raw_surface,
+        ))
     }
 
     pub fn optional_native_display(&self) -> &T {

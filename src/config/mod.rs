@@ -22,7 +22,10 @@ pub struct DisplayConfig<P: Platform> {
 }
 
 impl<P: Platform> DisplayConfig<P> {
-    pub(crate) fn new(display_handle: Arc<DisplayHandle<P>>, raw_config: ffi::types::EGLConfig) -> DisplayConfig<P> {
+    pub(crate) fn new(
+        display_handle: Arc<DisplayHandle<P>>,
+        raw_config: ffi::types::EGLConfig,
+    ) -> DisplayConfig<P> {
         DisplayConfig {
             display_handle,
             raw_config,
@@ -65,10 +68,7 @@ pub struct IntoIter<'a, D: DisplayType + 'a> {
 }
 
 impl<'a, D: DisplayType + 'a> IntoIter<'a, D> {
-    fn new(
-        display: &'a D,
-        raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>,
-    ) -> Self {
+    fn new(display: &'a D, raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>) -> Self {
         IntoIter {
             display,
             raw_configs_iter,
@@ -111,24 +111,29 @@ impl<'a, D: DisplayType + 'a> Config<'a, D> {
     }
 
     pub fn window_config(&self) -> QueryResult<bool> {
-        self.surface_type().map(|flags| flags.contains(SurfaceType::WINDOW))
+        self.surface_type()
+            .map(|flags| flags.contains(SurfaceType::WINDOW))
     }
 
     pub fn opengl_config(&self) -> QueryResult<bool> {
-        self.client_api().map(|flags| flags.contains(ConfigClientAPI::OPENGL))
+        self.client_api()
+            .map(|flags| flags.contains(ConfigClientAPI::OPENGL))
     }
 
     pub fn opengl_es_1_config(&self) -> QueryResult<bool> {
-        self.client_api().map(|flags| flags.contains(ConfigClientAPI::OPENGL_ES))
+        self.client_api()
+            .map(|flags| flags.contains(ConfigClientAPI::OPENGL_ES))
     }
 
     pub fn opengl_es_2_config(&self) -> QueryResult<bool> {
-        self.client_api().map(|flags| flags.contains(ConfigClientAPI::OPENGL_ES2))
+        self.client_api()
+            .map(|flags| flags.contains(ConfigClientAPI::OPENGL_ES2))
     }
 
     /// EGL_KHR_create_context
     pub fn opengl_es_3_config(&self) -> QueryResult<bool> {
-        self.client_api().map(|flags| flags.contains(ConfigClientAPI::OPENGL_ES3_KHR))
+        self.client_api()
+            .map(|flags| flags.contains(ConfigClientAPI::OPENGL_ES3_KHR))
     }
 }
 

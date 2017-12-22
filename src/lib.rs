@@ -25,7 +25,7 @@ use error::EGLError;
 use std::borrow::Cow;
 use std::ffi::CStr;
 
-use platform::{DefaultPlatform};
+use platform::DefaultPlatform;
 
 use display::get_proc_address;
 use std::os::raw::c_void;
@@ -100,7 +100,7 @@ impl DisplayBuilder {
         let extensions = if let Ok(extensions) = self.query_client_extensions() {
             ClientExtensions::parse(&extensions)
         } else {
-            return
+            return;
         };
 
         self.client_extensions = Some(extensions);
@@ -123,14 +123,11 @@ impl DisplayBuilder {
     pub fn build_default_platform_display<T>(
         self,
         native_display: ffi::types::NativeDisplayType,
-        optional_native_display_handle: T
+        optional_native_display_handle: T,
     ) -> Result<Display<DefaultPlatform<T>>, (Self, DisplayCreationError)> {
-        DefaultPlatform::get_display(
-            native_display,
-            optional_native_display_handle
-        ).map_err(|e| (self, e))
+        DefaultPlatform::get_display(native_display, optional_native_display_handle)
+            .map_err(|e| (self, e))
     }
-
 
     pub fn ext_platform_x11(&self) -> bool {
         if let Some(ref extensions) = self.client_extensions {
@@ -155,6 +152,11 @@ impl DisplayBuilder {
         native: T,
         attributes: Option<EXTPlatformAttributeList>,
     ) -> Result<Display<EXTPlatform<T>>, (Self, DisplayCreationError)> {
-        EXTPlatform::get_display(display_type, native_display_ptr, native, attributes.unwrap_or_default()).map_err(|e| (self, e))
+        EXTPlatform::get_display(
+            display_type,
+            native_display_ptr,
+            native,
+            attributes.unwrap_or_default(),
+        ).map_err(|e| (self, e))
     }
 }

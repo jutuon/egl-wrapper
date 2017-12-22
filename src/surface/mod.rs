@@ -13,12 +13,8 @@ pub trait Surface {
 }
 
 fn destroy_surface<S: Surface>(surface: &mut S) {
-    let result = unsafe {
-        ffi::DestroySurface(
-            surface.raw_display(),
-            surface.raw_surface(),
-        )
-    };
+    let result =
+        unsafe { ffi::DestroySurface(surface.raw_display(), surface.raw_surface()) };
 
     if result == ffi::FALSE {
         let error = EGLError::check_errors();

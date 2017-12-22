@@ -421,12 +421,11 @@ impl<P: Platform> Display<P> {
 }
 
 use config::client_api::*;
-use config::{ Config, DisplayConfig};
+use config::{Config, DisplayConfig};
 use config::attribute::ConfigUtils;
 use utils::QueryResult;
 
-use context::gles::{EGL14OpenGLESVersion,
-                    OpenGLESMajorVersionEXT};
+use context::gles::{EGL14OpenGLESVersion, OpenGLESMajorVersionEXT};
 
 impl<P: Platform> Display<P> {
     pub fn to_display_config(&self, config: Config<Self>) -> DisplayConfig<P> {
@@ -441,9 +440,14 @@ impl<P: Platform> Display<P> {
         }
     }
 
-    pub fn opengl_context_builder(&self, config: Config<Self>) -> QueryResult<Option<OpenGLContextBuilder<P>>> {
+    pub fn opengl_context_builder(
+        &self,
+        config: Config<Self>,
+    ) -> QueryResult<Option<OpenGLContextBuilder<P>>> {
         if config.opengl_config()? {
-            Ok(Some(OpenGLContextBuilder::new(ConfigOpenGL::new(self.to_display_config(config)))))
+            Ok(Some(OpenGLContextBuilder::new(ConfigOpenGL::new(
+                self.to_display_config(config),
+            ))))
         } else {
             Ok(None)
         }
@@ -451,13 +455,18 @@ impl<P: Platform> Display<P> {
 
     /// Returns Ok(None) if extension EGL_KHR_create_context is not supported or
     /// config does not support OpenGL.
-    pub fn opengl_context_builder_ext(&self, config: Config<Self>) -> QueryResult<Option<OpenGLContextBuilderEXT<P>>> {
+    pub fn opengl_context_builder_ext(
+        &self,
+        config: Config<Self>,
+    ) -> QueryResult<Option<OpenGLContextBuilderEXT<P>>> {
         if !self.display_extensions().create_context() {
             return Ok(None);
         }
 
         if config.opengl_config()? {
-            Ok(Some(OpenGLContextBuilderEXT::new(ConfigOpenGL::new(self.to_display_config(config)))))
+            Ok(Some(OpenGLContextBuilderEXT::new(ConfigOpenGL::new(
+                self.to_display_config(config),
+            ))))
         } else {
             Ok(None)
         }
@@ -468,14 +477,14 @@ impl<P: Platform> Display<P> {
         version: EGL14OpenGLESVersion,
         config: Config<Self>,
     ) -> QueryResult<Option<OpenGLESContextBuilder<P>>> {
-
         match version {
             EGL14OpenGLESVersion::Version1 if config.opengl_es_1_config()? => (),
             EGL14OpenGLESVersion::Version2 if config.opengl_es_2_config()? => (),
             _ => return Ok(None),
         }
 
-        let mut builder = OpenGLESContextBuilder::new(ConfigOpenGLES::new(self.to_display_config(config)));
+        let mut builder =
+            OpenGLESContextBuilder::new(ConfigOpenGLES::new(self.to_display_config(config)));
         builder.set_context_client_version(version);
 
         Ok(Some(builder))
@@ -498,7 +507,8 @@ impl<P: Platform> Display<P> {
             _ => return Ok(None),
         }
 
-        let mut builder = OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.to_display_config(config)));
+        let mut builder =
+            OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.to_display_config(config)));
         builder.set_major_version(version);
         Ok(Some(builder))
     }
