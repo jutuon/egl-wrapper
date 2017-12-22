@@ -6,6 +6,7 @@ use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 use egl_sys::extensions;
 
+use platform::Platform;
 use context::{Context, RawContextUtils};
 use config::client_api::ConfigOpenGLES;
 use utils::{AttributeListBuilder, UnsignedInteger};
@@ -30,28 +31,28 @@ pub enum OpenGLESMajorVersionEXT {
 }
 
 #[derive(Debug)]
-pub struct OpenGLESContext {
-    config_opengl: ConfigOpenGLES,
+pub struct OpenGLESContext<P: Platform> {
+    config_opengl: ConfigOpenGLES<P>,
     raw_context: ffi::types::EGLContext,
     _marker: PhantomData<ffi::types::EGLContext>,
 }
 
-impl ContextAttributeUtils for OpenGLESContext {}
-impl CommonAttributes for OpenGLESContext {}
+impl<P: Platform> ContextAttributeUtils for OpenGLESContext<P> {}
+impl<P: Platform> CommonAttributes for OpenGLESContext<P> {}
 
-impl AttributeOpenGLESVersion for OpenGLESContext {}
+impl<P: Platform> AttributeOpenGLESVersion for OpenGLESContext<P> {}
 
-impl Drop for OpenGLESContext {
+impl<P: Platform> Drop for OpenGLESContext<P> {
     fn drop(&mut self) {
         super::destroy_context(self.raw_display(), self.raw_context);
     }
 }
 
-impl RawContextUtils for OpenGLESContext {
+impl<P: Platform> RawContextUtils for OpenGLESContext<P> {
     const API_TYPE: ffi::types::EGLenum = ffi::OPENGL_ES_API;
 }
 
-impl Context for OpenGLESContext {
+impl<P: Platform> Context for OpenGLESContext<P> {
     fn raw_display(&self) -> ffi::types::EGLDisplay {
         self.config_opengl.display_config().raw_display()
     }
@@ -61,13 +62,13 @@ impl Context for OpenGLESContext {
     }
 }
 
-pub struct OpenGLESContextBuilder {
-    config_opengl: ConfigOpenGLES,
+pub struct OpenGLESContextBuilder<P: Platform> {
+    config_opengl: ConfigOpenGLES<P>,
     attributes: AttributeListBuilder,
 }
 
-impl OpenGLESContextBuilder {
-    pub(crate) fn new(config_opengl: ConfigOpenGLES) -> OpenGLESContextBuilder {
+impl<P: Platform> OpenGLESContextBuilder<P> {
+    pub(crate) fn new(config_opengl: ConfigOpenGLES<P>) -> Self {
         OpenGLESContextBuilder {
             config_opengl,
             attributes: AttributeListBuilder::new(),
@@ -81,10 +82,10 @@ impl OpenGLESContextBuilder {
     }
 
     /// This function calls `bind_api` before creating the context.
-    pub(crate) fn build(self) -> Result<OpenGLESContext, Option<EGLError>> {
+    pub(crate) fn build(self) -> Result<OpenGLESContext<P>, Option<EGLError>> {
         let attribute_list = self.attributes.build();
 
-        OpenGLESContext::bind_api()?;
+        OpenGLESContext::<P>::bind_api()?;
 
         let raw_context = unsafe {
             ffi::CreateContext(
@@ -111,10 +112,10 @@ impl OpenGLESContextBuilder {
 
 // EGL_KHR_create_context extension implementation
 
-pub struct OpenGLESContextBuilderEXT(OpenGLESContextBuilder);
+pub struct OpenGLESContextBuilderEXT<P: Platform>(OpenGLESContextBuilder<P>);
 
-impl OpenGLESContextBuilderEXT {
-    pub(crate) fn new(config_opengl: ConfigOpenGLES) -> OpenGLESContextBuilderEXT {
+impl<P: Platform> OpenGLESContextBuilderEXT<P> {
+    pub(crate) fn new(config_opengl: ConfigOpenGLES<P>) -> Self {
         OpenGLESContextBuilderEXT(OpenGLESContextBuilder::new(config_opengl))
     }
 
@@ -148,7 +149,7 @@ impl OpenGLESContextBuilderEXT {
     }
 
     /// This function calls `bind_api` before creating the context.
-    pub(crate) fn build(self) -> Result<OpenGLESContext, Option<EGLError>> {
+    pub(crate) fn build(self) -> Result<OpenGLESContext<P>, Option<EGLError>> {
         self.0.build()
     }
 }

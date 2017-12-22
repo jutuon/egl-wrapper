@@ -1,20 +1,23 @@
 use super::DisplayConfig;
 
+use platform::Platform;
+
+
 macro_rules! config_type {
     ( $name: ident ) => {
         #[derive(Debug, Clone)]
-        pub struct $name {
-            display_config: DisplayConfig,
+        pub struct $name<P: Platform> {
+            display_config: DisplayConfig<P>,
         }
 
-        impl $name {
-            pub(super) fn new(display_config: DisplayConfig) -> $name {
+        impl<P: Platform> $name<P> {
+            pub(crate) fn new(display_config: DisplayConfig<P>) -> Self {
                 $name {
                     display_config
                 }
             }
 
-            pub fn display_config(&self) -> &DisplayConfig {
+            pub fn display_config(&self) -> &DisplayConfig<P> {
                 &self.display_config
             }
         }

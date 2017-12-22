@@ -6,6 +6,7 @@ use egl_sys::ffi::types::EGLint;
 use egl_sys::ffi;
 use egl_sys::extensions;
 
+use platform::Platform;
 use context::{Context, RawContextUtils};
 use config::client_api::ConfigOpenGL;
 use utils::{AttributeListBuilder, PositiveInteger, UnsignedInteger};
@@ -15,26 +16,26 @@ use super::attribute::{CommonAttributes, ContextAttributeUtils, OpenGLContextFla
                        OpenGLContextProfile, ResetNotificationStrategy};
 
 #[derive(Debug)]
-pub struct OpenGLContext {
-    config_opengl: ConfigOpenGL,
+pub struct OpenGLContext<P: Platform> {
+    config_opengl: ConfigOpenGL<P>,
     raw_context: ffi::types::EGLContext,
     _marker: PhantomData<ffi::types::EGLContext>,
 }
 
-impl ContextAttributeUtils for OpenGLContext {}
-impl CommonAttributes for OpenGLContext {}
+impl<P: Platform> ContextAttributeUtils for OpenGLContext<P> {}
+impl<P: Platform> CommonAttributes for OpenGLContext<P> {}
 
-impl Drop for OpenGLContext {
+impl<P: Platform> Drop for OpenGLContext<P> {
     fn drop(&mut self) {
         super::destroy_context(self.raw_display(), self.raw_context);
     }
 }
 
-impl RawContextUtils for OpenGLContext {
+impl<P: Platform> RawContextUtils for OpenGLContext<P> {
     const API_TYPE: ffi::types::EGLenum = ffi::OPENGL_API;
 }
 
-impl Context for OpenGLContext {
+impl<P: Platform> Context for OpenGLContext<P> {
     fn raw_display(&self) -> ffi::types::EGLDisplay {
         self.config_opengl.display_config().raw_display()
     }
@@ -44,13 +45,13 @@ impl Context for OpenGLContext {
     }
 }
 
-pub struct OpenGLContextBuilder {
-    config_opengl: ConfigOpenGL,
+pub struct OpenGLContextBuilder<P: Platform> {
+    config_opengl: ConfigOpenGL<P>,
     attributes: AttributeListBuilder,
 }
 
-impl OpenGLContextBuilder {
-    pub(crate) fn new(config_opengl: ConfigOpenGL) -> OpenGLContextBuilder {
+impl<P: Platform> OpenGLContextBuilder<P> {
+    pub(crate) fn new(config_opengl: ConfigOpenGL<P>) -> Self {
         OpenGLContextBuilder {
             config_opengl,
             attributes: AttributeListBuilder::new(),
@@ -58,10 +59,10 @@ impl OpenGLContextBuilder {
     }
 
     /// This function calls `bind_api` before creating the context.
-    pub(crate) fn build(self) -> Result<OpenGLContext, Option<EGLError>> {
+    pub(crate) fn build(self) -> Result<OpenGLContext<P>, Option<EGLError>> {
         let attribute_list = self.attributes.build();
 
-        OpenGLContext::bind_api()?;
+        OpenGLContext::<P>::bind_api()?;
 
         let raw_context = unsafe {
             ffi::CreateContext(
@@ -89,12 +90,12 @@ impl OpenGLContextBuilder {
 // EGL_KHR_create_context extension implementation
 
 /// OpenGL context builder with EGL_KHR_create_context extension attributes.
-pub struct OpenGLContextBuilderEXT {
-    builder: OpenGLContextBuilder,
+pub struct OpenGLContextBuilderEXT<P: Platform> {
+    builder: OpenGLContextBuilder<P>,
 }
 
-impl OpenGLContextBuilderEXT {
-    pub(crate) fn new(config_opengl: ConfigOpenGL) -> OpenGLContextBuilderEXT {
+impl<P: Platform> OpenGLContextBuilderEXT<P> {
+    pub(crate) fn new(config_opengl: ConfigOpenGL<P>) -> Self {
         OpenGLContextBuilderEXT {
             builder: OpenGLContextBuilder::new(config_opengl),
         }
@@ -144,7 +145,7 @@ impl OpenGLContextBuilderEXT {
     }
 
     /// This function calls `bind_api` before creating the context.
-    pub(crate) fn build(self) -> Result<OpenGLContext, Option<EGLError>> {
+    pub(crate) fn build(self) -> Result<OpenGLContext<P>, Option<EGLError>> {
         self.builder.build()
     }
 }

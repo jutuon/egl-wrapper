@@ -101,6 +101,10 @@ impl AttributeList {
     pub fn ptr(&self) -> *const EGLint {
         self.0.as_slice().as_ptr()
     }
+
+    pub(crate) fn empty() -> Self {
+        AttributeList(vec![ffi::NONE as EGLint])
+    }
 }
 
 impl AttributeListTrait for AttributeList {

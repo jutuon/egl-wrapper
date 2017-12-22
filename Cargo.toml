@@ -6,7 +6,6 @@ authors = ["Juuso Tuononen <jutuon@outlook.com>"]
 
 [dependencies]
 bitflags = "1.0"
-x11 = "2.17"
 
 [dependencies.egl-sys]
 path = "../egl-sys"

@@ -15,7 +15,7 @@ use context::gl::{OpenGLContext, OpenGLContextBuilder, OpenGLContextBuilderEXT};
 use context::gles::{OpenGLESContext, OpenGLESContextBuilder, OpenGLESContextBuilderEXT};
 use context::SingleContext;
 use error::EGLError;
-use platform::PlatformDisplay;
+use platform::Platform;
 
 #[derive(Debug, Clone)]
 pub struct DisplayExtensionSupport {
@@ -110,14 +110,16 @@ impl EGLVersion {
 }
 
 #[derive(Debug)]
-pub struct DisplayHandle {
+pub struct DisplayHandle<P: Platform> {
+    platform: P,
     raw_display: ffi::types::EGLDisplay,
     _marker: PhantomData<ffi::types::EGLDisplay>,
 }
 
-impl DisplayHandle {
-    fn new_in_arc(raw_display: ffi::types::EGLDisplay) -> Arc<DisplayHandle> {
+impl<P: Platform> DisplayHandle<P> {
+    fn new_in_arc(raw_display: ffi::types::EGLDisplay, platform: P) -> Arc<Self> {
         let display_handle = DisplayHandle {
+            platform,
             raw_display,
             _marker: PhantomData,
         };
@@ -130,7 +132,7 @@ impl DisplayHandle {
     }
 }
 
-impl Drop for DisplayHandle {
+impl<P: Platform> Drop for DisplayHandle<P> {
     fn drop(&mut self) {
         let result = unsafe { ffi::Terminate(self.raw_display) };
 
@@ -150,18 +152,17 @@ impl Drop for DisplayHandle {
 
 /// EGLDisplay with initialized EGL
 #[derive(Debug)]
-pub struct Display<P: PlatformDisplay> {
-    platform: P,
+pub struct Display<P: Platform> {
     extension_support: DisplayExtensionSupport,
     egl_version: EGLVersion,
-    display_handle: Arc<DisplayHandle>,
+    display_handle: Arc<DisplayHandle<P>>,
 }
 
-impl<P: PlatformDisplay> Display<P> {
+impl<P: Platform> Display<P> {
     pub(crate) fn new(
         raw_display: ffi::types::EGLDisplay,
         platform: P,
-    ) -> Result<Display<P>, DisplayCreationError> {
+    ) -> Result<Self, DisplayCreationError> {
         let mut version_major = 0;
         let mut version_minor = 0;
 
@@ -178,10 +179,9 @@ impl<P: PlatformDisplay> Display<P> {
         match version {
             Some(version) => {
                 let mut display = Display {
-                    platform,
                     extension_support,
                     egl_version: version,
-                    display_handle: DisplayHandle::new_in_arc(raw_display),
+                    display_handle: DisplayHandle::new_in_arc(raw_display, platform),
                 };
 
                 let parsed_extensions = match display.extensions() {
@@ -200,10 +200,9 @@ impl<P: PlatformDisplay> Display<P> {
                 // return error.
 
                 let display = Display {
-                    platform,
                     extension_support,
                     egl_version: EGLVersion::EGL_1_4,
-                    display_handle: DisplayHandle::new_in_arc(raw_display),
+                    display_handle: DisplayHandle::new_in_arc(raw_display, platform),
                 };
 
                 drop(display);
@@ -355,8 +354,8 @@ impl<P: PlatformDisplay> Display<P> {
 
     pub fn build_opengl_context(
         self,
-        builder: OpenGLContextBuilder,
-    ) -> Result<SingleContext<OpenGLContext, Self>, DisplayError<P, Option<EGLError>>> {
+        builder: OpenGLContextBuilder<P>,
+    ) -> Result<SingleContext<OpenGLContext<P>, Self>, DisplayError<P, Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
             Err(error) => Err(DisplayError::new(self, error)),
@@ -366,8 +365,8 @@ impl<P: PlatformDisplay> Display<P> {
     /// Extension EGL_KHR_create_context
     pub fn build_opengl_context_ext(
         self,
-        builder: OpenGLContextBuilderEXT,
-    ) -> Result<SingleContext<OpenGLContext, Self>, DisplayError<P, Option<EGLError>>> {
+        builder: OpenGLContextBuilderEXT<P>,
+    ) -> Result<SingleContext<OpenGLContext<P>, Self>, DisplayError<P, Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
             Err(error) => Err(DisplayError::new(self, error)),
@@ -376,8 +375,8 @@ impl<P: PlatformDisplay> Display<P> {
 
     pub fn build_opengl_es_context(
         self,
-        builder: OpenGLESContextBuilder,
-    ) -> Result<SingleContext<OpenGLESContext, Self>, DisplayError<P, Option<EGLError>>> {
+        builder: OpenGLESContextBuilder<P>,
+    ) -> Result<SingleContext<OpenGLESContext<P>, Self>, DisplayError<P, Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
             Err(error) => Err(DisplayError::new(self, error)),
@@ -387,15 +386,15 @@ impl<P: PlatformDisplay> Display<P> {
     /// Extension EGL_KHR_create_context
     pub fn build_opengl_es_context_ext(
         self,
-        builder: OpenGLESContextBuilderEXT,
-    ) -> Result<SingleContext<OpenGLESContext, Self>, DisplayError<P, Option<EGLError>>> {
+        builder: OpenGLESContextBuilderEXT<P>,
+    ) -> Result<SingleContext<OpenGLESContext<P>, Self>, DisplayError<P, Option<EGLError>>> {
         match builder.build() {
             Ok(context) => Ok(SingleContext::new(context, self)),
             Err(error) => Err(DisplayError::new(self, error)),
         }
     }
 
-    pub(crate) fn display_handle(&self) -> &Arc<DisplayHandle> {
+    pub(crate) fn display_handle(&self) -> &Arc<DisplayHandle<P>> {
         &self.display_handle
     }
 
@@ -417,33 +416,113 @@ impl<P: PlatformDisplay> Display<P> {
     }
 
     pub fn platform_display(&self) -> &P {
-        &self.platform
+        &self.display_handle.platform
+    }
+}
+
+use config::client_api::*;
+use config::{ Config, DisplayConfig};
+use config::attribute::ConfigUtils;
+use utils::QueryResult;
+
+use context::gles::{EGL14OpenGLESVersion,
+                    OpenGLESMajorVersionEXT};
+
+impl<P: Platform> Display<P> {
+    pub fn to_display_config(&self, config: Config<Self>) -> DisplayConfig<P> {
+        DisplayConfig::new(self.display_handle.clone(), config.raw_config())
     }
 
-    pub fn platform_display_mut(&mut self) -> &mut P {
-        &mut self.platform
+    pub fn window_surface(&self, config: Config<Self>) -> QueryResult<Option<ConfigWindow<P>>> {
+        if config.window_config()? {
+            Ok(Some(ConfigWindow::new(self.to_display_config(config))))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn opengl_context_builder(&self, config: Config<Self>) -> QueryResult<Option<OpenGLContextBuilder<P>>> {
+        if config.opengl_config()? {
+            Ok(Some(OpenGLContextBuilder::new(ConfigOpenGL::new(self.to_display_config(config)))))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Returns Ok(None) if extension EGL_KHR_create_context is not supported or
+    /// config does not support OpenGL.
+    pub fn opengl_context_builder_ext(&self, config: Config<Self>) -> QueryResult<Option<OpenGLContextBuilderEXT<P>>> {
+        if !self.display_extensions().create_context() {
+            return Ok(None);
+        }
+
+        if config.opengl_config()? {
+            Ok(Some(OpenGLContextBuilderEXT::new(ConfigOpenGL::new(self.to_display_config(config)))))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn opengl_es_context_builder(
+        &self,
+        version: EGL14OpenGLESVersion,
+        config: Config<Self>,
+    ) -> QueryResult<Option<OpenGLESContextBuilder<P>>> {
+
+        match version {
+            EGL14OpenGLESVersion::Version1 if config.opengl_es_1_config()? => (),
+            EGL14OpenGLESVersion::Version2 if config.opengl_es_2_config()? => (),
+            _ => return Ok(None),
+        }
+
+        let mut builder = OpenGLESContextBuilder::new(ConfigOpenGLES::new(self.to_display_config(config)));
+        builder.set_context_client_version(version);
+
+        Ok(Some(builder))
+    }
+
+    /// EGL_KHR_create_context
+    pub fn opengl_es_context_builder_ext(
+        &self,
+        version: OpenGLESMajorVersionEXT,
+        config: Config<Self>,
+    ) -> QueryResult<Option<OpenGLESContextBuilderEXT<P>>> {
+        if !self.display_extensions().create_context() {
+            return Ok(None);
+        }
+
+        match version {
+            OpenGLESMajorVersionEXT::Version1 if config.opengl_es_1_config()? => (),
+            OpenGLESMajorVersionEXT::Version2 if config.opengl_es_2_config()? => (),
+            OpenGLESMajorVersionEXT::Version3 if config.opengl_es_3_config()? => (),
+            _ => return Ok(None),
+        }
+
+        let mut builder = OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.to_display_config(config)));
+        builder.set_major_version(version);
+        Ok(Some(builder))
     }
 }
 
 /// Return ownership of Display back if error occurred.
 #[derive(Debug)]
-pub struct DisplayError<P: PlatformDisplay, E> {
+pub struct DisplayError<P: Platform, E> {
     pub display: Display<P>,
     pub error: E,
 }
 
-impl<P: PlatformDisplay, E> DisplayError<P, E> {
+impl<P: Platform, E> DisplayError<P, E> {
     fn new(display: Display<P>, error: E) -> DisplayError<P, E> {
         DisplayError { display, error }
     }
 }
 
 /// Load client API and EGL extension function pointers
-pub struct ExtensionFunctionLoader<'a, P: PlatformDisplay + 'a> {
+pub struct ExtensionFunctionLoader<'a, P: Platform + 'a> {
     _display: &'a Display<P>,
 }
 
-impl<'a, P: PlatformDisplay + 'a> ExtensionFunctionLoader<'a, P> {
+impl<'a, P: Platform + 'a> ExtensionFunctionLoader<'a, P> {
     /// If null is returned the function does not exists.
     /// A non null value does not guarantee existence of the extension function.
     pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
@@ -453,11 +532,11 @@ impl<'a, P: PlatformDisplay + 'a> ExtensionFunctionLoader<'a, P> {
 
 /// Load client API and EGL function pointers.
 /// Supports all functions, not only extensions functions.
-pub struct FunctionLoader<'a, P: PlatformDisplay + 'a> {
+pub struct FunctionLoader<'a, P: Platform + 'a> {
     _display: &'a Display<P>,
 }
 
-impl<'a, P: PlatformDisplay + 'a> FunctionLoader<'a, P> {
+impl<'a, P: Platform + 'a> FunctionLoader<'a, P> {
     /// If null is returned the function does not exists.
     /// A non null value does not guarantee existence of the function.
     pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
@@ -477,9 +556,9 @@ pub(crate) fn get_proc_address(name: &str) -> Result<*const os::raw::c_void, Nul
     }
 }
 
-impl<P: PlatformDisplay> DisplayType for Display<P> {
-    fn display_handle(&self) -> &Arc<DisplayHandle> {
-        &self.display_handle
+impl<T: Platform> DisplayType for Display<T> {
+    fn raw_display(&self) -> ffi::types::EGLDisplay {
+        self.display_handle.raw_display()
     }
 
     fn egl_version(&self) -> EGLVersion {
@@ -492,7 +571,7 @@ impl<P: PlatformDisplay> DisplayType for Display<P> {
 }
 
 pub trait DisplayType {
-    fn display_handle(&self) -> &Arc<DisplayHandle>;
+    fn raw_display(&self) -> ffi::types::EGLDisplay;
     fn display_extensions(&self) -> &DisplayExtensionSupport;
     fn egl_version(&self) -> EGLVersion;
 }

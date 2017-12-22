@@ -9,16 +9,15 @@ use error::EGLError;
 use surface::Surface;
 use surface::attribute::RenderBuffer;
 use utils::{QueryError, QueryResult, UnsignedInteger};
-use display::DisplayType;
 
 /// Create only one `SingleContext` per Display
 #[derive(Debug)]
-pub struct SingleContext<C: Context, D: DisplayType> {
+pub struct SingleContext<C: Context, D> {
     display: D,
     context: C,
 }
 
-impl<C: Context, D: DisplayType> SingleContext<C, D> {
+impl<C: Context, D> SingleContext<C, D> {
     pub(crate) fn new(context: C, display: D) -> Self {
         SingleContext { display, context }
     }
@@ -91,12 +90,12 @@ pub trait Context: Sized {
     fn raw_context(&self) -> ffi::types::EGLContext;
 }
 
-pub struct CurrentSurfaceAndContext<S: Surface, C: Context, D: DisplayType> {
+pub struct CurrentSurfaceAndContext<S: Surface, C: Context, D> {
     surface: S,
     context: SingleContext<C, D>,
 }
 
-impl<S: Surface, C: Context, D: DisplayType> CurrentSurfaceAndContext<S, C, D> {
+impl<S: Surface, C: Context, D> CurrentSurfaceAndContext<S, C, D> {
     pub fn swap_buffers(self) -> Result<Self, ContextOrSurfaceError<S, C, D>> {
         let result = unsafe {
             ffi::SwapBuffers(
@@ -146,7 +145,7 @@ impl<S: Surface, C: Context, D: DisplayType> CurrentSurfaceAndContext<S, C, D> {
     }
 }
 
-impl<S: Surface, C: Context + attribute::ContextAttributeUtils, D: DisplayType>
+impl<S: Surface, C: Context + attribute::ContextAttributeUtils, D>
     CurrentSurfaceAndContext<S, C, D> {
     pub fn render_buffer(&self) -> QueryResult<RenderBuffer> {
         let value = self.context
@@ -173,7 +172,7 @@ pub(self) fn destroy_context(
 }
 
 #[derive(Debug)]
-pub enum ContextOrSurfaceError<S: Surface, C: Context, D: DisplayType> {
+pub enum ContextOrSurfaceError<S: Surface, C: Context, D> {
     ContextLost(D, S),
     BadNativeWindow(SingleContext<C, D>),
     OtherError(D, Option<EGLError>),

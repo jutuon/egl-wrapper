@@ -83,7 +83,7 @@ pub trait SurfaceAttributeUtils: Surface {
     ) -> Result<(), Option<EGLError>> {
         let result = unsafe {
             ffi::SurfaceAttrib(
-                self.display_config().raw_display(),
+                self.raw_display(),
                 self.raw_surface(),
                 attribute as EGLint,
                 value,
@@ -101,7 +101,7 @@ pub trait SurfaceAttributeUtils: Surface {
         let mut value = 0;
         let result = unsafe {
             ffi::QuerySurface(
-                self.display_config().raw_display(),
+                self.raw_display(),
                 self.raw_surface(),
                 attribute as EGLint,
                 &mut value,

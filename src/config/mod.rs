@@ -7,22 +7,28 @@ use std::sync::Arc;
 
 use egl_sys::ffi;
 
+use platform::Platform;
 use display::{DisplayExtensionSupport, DisplayHandle, DisplayType};
-use context::gl::{OpenGLContextBuilder, OpenGLContextBuilderEXT};
-use context::gles::{EGL14OpenGLESVersion, OpenGLESContextBuilder, OpenGLESContextBuilderEXT,
-                    OpenGLESMajorVersionEXT};
 
 use self::attribute::*;
-use self::client_api::*;
+
+use utils::QueryResult;
 
 #[derive(Debug, Clone)]
 /// Config with reference counted handle to `Display`.
-pub struct DisplayConfig {
-    display_handle: Arc<DisplayHandle>,
+pub struct DisplayConfig<P: Platform> {
+    display_handle: Arc<DisplayHandle<P>>,
     raw_config: ffi::types::EGLConfig,
 }
 
-impl DisplayConfig {
+impl<P: Platform> DisplayConfig<P> {
+    pub(crate) fn new(display_handle: Arc<DisplayHandle<P>>, raw_config: ffi::types::EGLConfig) -> DisplayConfig<P> {
+        DisplayConfig {
+            display_handle,
+            raw_config,
+        }
+    }
+
     pub fn raw_display(&self) -> ffi::types::EGLDisplay {
         self.display_handle.raw_display()
     }
@@ -39,7 +45,7 @@ pub struct Configs<'a, D: DisplayType + 'a> {
 }
 
 impl<'a, D: DisplayType + 'a> Configs<'a, D> {
-    pub(crate) fn new(display: &'a D, raw_configs: Vec<ffi::types::EGLConfig>) -> Configs<'a, D> {
+    pub(crate) fn new(display: &'a D, raw_configs: Vec<ffi::types::EGLConfig>) -> Self {
         Configs {
             display,
             raw_configs,
@@ -62,7 +68,7 @@ impl<'a, D: DisplayType + 'a> IntoIter<'a, D> {
     fn new(
         display: &'a D,
         raw_configs_iter: vec::IntoIter<ffi::types::EGLConfig>,
-    ) -> IntoIter<'a, D> {
+    ) -> Self {
         IntoIter {
             display,
             raw_configs_iter,
@@ -97,110 +103,32 @@ pub struct Config<'a, D: DisplayType + 'a> {
 }
 
 impl<'a, D: DisplayType + 'a> Config<'a, D> {
-    fn into_display_config(self) -> DisplayConfig {
-        DisplayConfig {
-            display_handle: self.display.display_handle().clone(),
-            raw_config: self.raw_config(),
-        }
-    }
-
-    pub fn window_surface(self) -> Option<ConfigWindow> {
-        match self.surface_type() {
-            Ok(surface_type) if surface_type.contains(SurfaceType::WINDOW) => {
-                Some(ConfigWindow::new(self.into_display_config()))
-            }
-            _ => None,
-        }
-    }
-
-    pub fn opengl_context_builder(self) -> Option<OpenGLContextBuilder> {
-        match self.client_api() {
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => Some(
-                OpenGLContextBuilder::new(ConfigOpenGL::new(self.into_display_config())),
-            ),
-            _ => None,
-        }
-    }
-
-    /// Returns None if extension EGL_KHR_create_context is not supported or
-    /// config does not support OpengGL.
-    pub fn opengl_context_builder_ext(self) -> Option<OpenGLContextBuilderEXT> {
-        if !self.display_extensions().create_context() {
-            return None;
-        }
-
-        match self.client_api() {
-            Ok(client_api) if client_api.contains(ConfigClientAPI::OPENGL) => Some(
-                OpenGLContextBuilderEXT::new(ConfigOpenGL::new(self.into_display_config())),
-            ),
-            _ => None,
-        }
-    }
-
-    pub fn opengl_es_context_builder(
-        self,
-        version: EGL14OpenGLESVersion,
-    ) -> Option<OpenGLESContextBuilder> {
-        let mut builder = match self.client_api() {
-            Ok(client_api)
-                if client_api.contains(ConfigClientAPI::OPENGL_ES)
-                    && version == EGL14OpenGLESVersion::Version1 =>
-            {
-                OpenGLESContextBuilder::new(ConfigOpenGLES::new(self.into_display_config()))
-            }
-            Ok(client_api)
-                if client_api.contains(ConfigClientAPI::OPENGL_ES2)
-                    && version == EGL14OpenGLESVersion::Version2 =>
-            {
-                OpenGLESContextBuilder::new(ConfigOpenGLES::new(self.into_display_config()))
-            }
-            _ => return None,
-        };
-
-        builder.set_context_client_version(version);
-        Some(builder)
-    }
-
-    /// EGL_KHR_create_context
-    pub fn opengl_es_context_builder_ext(
-        self,
-        version: OpenGLESMajorVersionEXT,
-    ) -> Option<OpenGLESContextBuilderEXT> {
-        if !self.display_extensions().create_context() {
-            return None;
-        }
-
-        let mut builder = match self.client_api() {
-            Ok(client_api)
-                if client_api.contains(ConfigClientAPI::OPENGL_ES)
-                    && version == OpenGLESMajorVersionEXT::Version1 =>
-            {
-                OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
-            }
-            Ok(client_api)
-                if client_api.contains(ConfigClientAPI::OPENGL_ES2)
-                    && version == OpenGLESMajorVersionEXT::Version2 =>
-            {
-                OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
-            }
-            Ok(client_api)
-                if client_api.contains(ConfigClientAPI::OPENGL_ES3_KHR)
-                    && version == OpenGLESMajorVersionEXT::Version3 =>
-            {
-                OpenGLESContextBuilderEXT::new(ConfigOpenGLES::new(self.into_display_config()))
-            }
-            _ => return None,
-        };
-
-        builder.set_major_version(version);
-        Some(builder)
-    }
-
-    pub fn clone(&self) -> Config<'a, D> {
+    pub fn clone(&self) -> Self {
         Config {
             display: self.display,
             raw_config: self.raw_config,
         }
+    }
+
+    pub fn window_config(&self) -> QueryResult<bool> {
+        self.surface_type().map(|flags| flags.contains(SurfaceType::WINDOW))
+    }
+
+    pub fn opengl_config(&self) -> QueryResult<bool> {
+        self.client_api().map(|flags| flags.contains(ConfigClientAPI::OPENGL))
+    }
+
+    pub fn opengl_es_1_config(&self) -> QueryResult<bool> {
+        self.client_api().map(|flags| flags.contains(ConfigClientAPI::OPENGL_ES))
+    }
+
+    pub fn opengl_es_2_config(&self) -> QueryResult<bool> {
+        self.client_api().map(|flags| flags.contains(ConfigClientAPI::OPENGL_ES2))
+    }
+
+    /// EGL_KHR_create_context
+    pub fn opengl_es_3_config(&self) -> QueryResult<bool> {
+        self.client_api().map(|flags| flags.contains(ConfigClientAPI::OPENGL_ES3_KHR))
     }
 }
 
@@ -210,7 +138,7 @@ impl<'a, D: DisplayType + 'a> ConfigUtils for Config<'a, D> {
     }
 
     fn raw_display(&self) -> ffi::types::EGLDisplay {
-        self.display.display_handle().raw_display()
+        self.display.raw_display()
     }
 
     fn display_extensions(&self) -> &DisplayExtensionSupport {

@@ -3,29 +3,33 @@ use std::marker::PhantomData;
 use egl_sys::ffi;
 use egl_sys::ffi::types::EGLint;
 
-use config::DisplayConfig;
 use utils::{AttributeList, AttributeListBuilder, AttributeListTrait};
-
 use config::client_api::ConfigWindow;
+use platform::Platform;
 
 use super::{destroy_surface, Surface};
 
 use super::attribute::{CommonAttributes, MultisampleResolve, RenderBuffer, SurfaceAttributeUtils,
                        SwapBehavior, WindowAttributes};
 
+
+
 #[derive(Debug)]
-pub struct WindowSurface {
-    window_config: ConfigWindow,
+pub struct WindowSurface<T, P: Platform> {
+    optional_native_window_handle: T,
+    window_config: ConfigWindow<P>,
     raw_surface: ffi::types::EGLSurface,
     _marker: PhantomData<ffi::types::EGLSurface>,
 }
 
-impl WindowSurface {
+impl<T, P: Platform> WindowSurface<T, P> {
     pub(crate) fn new(
-        window_config: ConfigWindow,
+        optional_native_window_handle: T,
+        window_config: ConfigWindow<P>,
         raw_surface: ffi::types::EGLSurface,
-    ) -> WindowSurface {
+    ) -> Self {
         WindowSurface {
+            optional_native_window_handle,
             window_config,
             raw_surface,
             _marker: PhantomData,
@@ -33,35 +37,35 @@ impl WindowSurface {
     }
 }
 
-impl Surface for WindowSurface {
+impl<T, P: Platform> Surface for WindowSurface<T, P> {
     fn raw_surface(&self) -> ffi::types::EGLSurface {
         self.raw_surface
     }
 
-    fn display_config(&self) -> &DisplayConfig {
-        self.window_config.display_config()
+    fn raw_display(&self) -> ffi::types::EGLDisplay {
+        self.window_config.display_config().raw_display()
     }
 }
 
-impl Drop for WindowSurface {
+impl<T, P: Platform> Drop for WindowSurface<T, P> {
     fn drop(&mut self) {
         destroy_surface(self)
     }
 }
 
-impl SurfaceAttributeUtils for WindowSurface {}
-impl CommonAttributes for WindowSurface {}
-impl MultisampleResolve for WindowSurface {}
-impl SwapBehavior for WindowSurface {}
+impl<T, P: Platform> SurfaceAttributeUtils for WindowSurface<T, P> {}
+impl<T, P: Platform> CommonAttributes for WindowSurface<T, P> {}
+impl<T, P: Platform> MultisampleResolve for WindowSurface<T, P> {}
+impl<T, P: Platform> SwapBehavior for WindowSurface<T, P> {}
 
-impl WindowAttributes for WindowSurface {}
+impl<T, P: Platform> WindowAttributes for WindowSurface<T, P> {}
 
 pub struct WindowSurfaceAttributeListBuilder {
     attributes: AttributeListBuilder,
 }
 
 impl WindowSurfaceAttributeListBuilder {
-    pub fn new() -> WindowSurfaceAttributeListBuilder {
+    pub fn new() -> Self {
         WindowSurfaceAttributeListBuilder {
             attributes: AttributeListBuilder::new(),
         }
@@ -90,5 +94,11 @@ pub struct WindowSurfaceAttributeList(AttributeList);
 impl WindowSurfaceAttributeList {
     pub fn ptr(&self) -> *const EGLint {
         self.0.attribute_list_ptr()
+    }
+}
+
+impl Default for WindowSurfaceAttributeList {
+    fn default() -> Self {
+        WindowSurfaceAttributeList(AttributeList::empty())
     }
 }
