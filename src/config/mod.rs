@@ -103,13 +103,6 @@ pub struct Config<'a, D: DisplayType + 'a> {
 }
 
 impl<'a, D: DisplayType + 'a> Config<'a, D> {
-    pub fn clone(&self) -> Self {
-        Config {
-            display: self.display,
-            raw_config: self.raw_config,
-        }
-    }
-
     pub fn window_config(&self) -> QueryResult<bool> {
         self.surface_type()
             .map(|flags| flags.contains(SurfaceType::WINDOW))

@@ -428,11 +428,11 @@ use utils::QueryResult;
 use context::gles::{EGL14OpenGLESVersion, OpenGLESMajorVersionEXT};
 
 impl<P: Platform> Display<P> {
-    pub fn to_display_config(&self, config: Config<Self>) -> DisplayConfig<P> {
+    pub fn to_display_config(&self, config: &Config<Self>) -> DisplayConfig<P> {
         DisplayConfig::new(self.display_handle.clone(), config.raw_config())
     }
 
-    pub fn window_surface(&self, config: Config<Self>) -> QueryResult<Option<ConfigWindow<P>>> {
+    pub fn window_surface(&self, config: &Config<Self>) -> QueryResult<Option<ConfigWindow<P>>> {
         if config.window_config()? {
             Ok(Some(ConfigWindow::new(self.to_display_config(config))))
         } else {
@@ -442,7 +442,7 @@ impl<P: Platform> Display<P> {
 
     pub fn opengl_context_builder(
         &self,
-        config: Config<Self>,
+        config: &Config<Self>,
     ) -> QueryResult<Option<OpenGLContextBuilder<P>>> {
         if config.opengl_config()? {
             Ok(Some(OpenGLContextBuilder::new(ConfigOpenGL::new(
@@ -457,7 +457,7 @@ impl<P: Platform> Display<P> {
     /// config does not support OpenGL.
     pub fn opengl_context_builder_ext(
         &self,
-        config: Config<Self>,
+        config: &Config<Self>,
     ) -> QueryResult<Option<OpenGLContextBuilderEXT<P>>> {
         if !self.display_extensions().create_context() {
             return Ok(None);
@@ -475,7 +475,7 @@ impl<P: Platform> Display<P> {
     pub fn opengl_es_context_builder(
         &self,
         version: EGL14OpenGLESVersion,
-        config: Config<Self>,
+        config: &Config<Self>,
     ) -> QueryResult<Option<OpenGLESContextBuilder<P>>> {
         match version {
             EGL14OpenGLESVersion::Version1 if config.opengl_es_1_config()? => (),
@@ -494,7 +494,7 @@ impl<P: Platform> Display<P> {
     pub fn opengl_es_context_builder_ext(
         &self,
         version: OpenGLESMajorVersionEXT,
-        config: Config<Self>,
+        config: &Config<Self>,
     ) -> QueryResult<Option<OpenGLESContextBuilderEXT<P>>> {
         if !self.display_extensions().create_context() {
             return Ok(None);
