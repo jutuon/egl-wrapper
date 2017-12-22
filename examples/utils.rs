@@ -3,7 +3,7 @@ use gl;
 use std::ffi::CStr;
 use std::os::raw;
 
-use egl_wrapper::platform::PlatformDisplay;
+use egl_wrapper::platform::Platform;
 use egl_wrapper::display::Display;
 use egl_wrapper::config::Configs;
 
@@ -38,7 +38,7 @@ pub fn get_renderer_string<'a>() -> &'a CStr {
     }
 }
 
-pub fn search_configs<'a, P: PlatformDisplay>(display: &'a Display<P>) -> Configs<'a, Display<P>> {
+pub fn search_configs<'a, P: Platform>(display: &'a Display<P>) -> Configs<'a, Display<P>> {
     use egl_wrapper::config::attribute::{ConfigClientAPI, SurfaceType};
 
     use egl_wrapper::config::search::UnsignedIntegerSearchAttributes;

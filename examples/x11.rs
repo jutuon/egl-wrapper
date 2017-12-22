@@ -11,11 +11,12 @@ use std::ptr::null;
 use std::thread;
 use std::time::Duration;
 use std::mem;
+use std::cell::RefCell;
 
 use egl_wrapper::display::{Display, DisplayType};
 use egl_wrapper::surface::window::WindowSurfaceAttributeListBuilder;
 
-use egl_wrapper::platform::{DefaultPlatform, RawNativeDisplay, RawNativeWindow};
+use egl_wrapper::platform::{DefaultPlatform, Platform};
 
 use utils::{print_opengl_info, search_configs};
 
@@ -60,7 +61,7 @@ impl X11 {
 
             let mut visual_count = 0;
 
-            let mut visual_info_ptr: *mut xlib::XVisualInfo = xlib::XGetVisualInfo(
+            let visual_info_ptr: *mut xlib::XVisualInfo = xlib::XGetVisualInfo(
                 self.raw_display,
                 xlib::VisualIDMask,
                 &mut visual_info_template,
@@ -74,7 +75,7 @@ impl X11 {
                 return Err(());
             }
 
-            let mut colormap: xlib::Colormap = xlib::XCreateColormap(
+            let colormap: xlib::Colormap = xlib::XCreateColormap(
                 self.raw_display,
                 xlib::XRootWindow(self.raw_display, 0),
                 (*visual_info_ptr).visual,
@@ -158,32 +159,14 @@ impl Drop for X11 {
     }
 }
 
-unsafe impl<'a> RawNativeDisplay for &'a mut X11 {
-    type T = egl_wrapper::ffi::types::NativeDisplayType;
-
-    fn raw_native_display(&self) -> Self::T {
-        self.raw_display
-    }
-}
-
-unsafe impl<'a> RawNativeWindow for &'a mut X11 {
-    type T = egl_wrapper::ffi::types::NativeWindowType;
-
-    fn raw_native_window(&self) -> Option<Self::T> {
-        self.raw_window
-    }
-}
-
 fn x11() {
     unsafe {
-        let mut x11 = X11::new().unwrap();
+        let x11 = X11::new().unwrap();
 
         let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
 
-        // Create display with mutable reference to X11 so it is sure that X11 will be dropped last, if
-        // WindowSurface will not be returned from this function.
-        let mut display: Display<DefaultPlatform<&mut X11>> = display_builder
-            .build_from_native_display(&mut x11)
+        let display: Display<DefaultPlatform<RefCell<X11>>> = display_builder
+            .build_default_platform_display(x11.raw_display, RefCell::new(x11))
             .expect("error");
 
         print_display_info(&display);
@@ -200,23 +183,27 @@ fn x11() {
             use egl_wrapper::config::attribute::NativeRenderable;
 
             let config = search_configs(&display).into_iter().next().unwrap();
-            let config_window = config.clone().window_surface().unwrap();
-            let opengl_context_builder = config.clone().opengl_context_builder().unwrap();
+            let config_window = display.window_surface(&config).unwrap().unwrap();
+            let opengl_context_builder = display.opengl_context_builder(&config).unwrap().unwrap();
 
             let visual_id = config.native_visual_id().unwrap().unwrap();
             (config_window, opengl_context_builder, visual_id)
         };
 
         display
-            .platform_display_mut()
-            .native_mut()
+            .display_handle()
+            .platform()
+            .optional_native_display()
+            .borrow_mut()
             .create_window(visual_id as xlib::XID)
             .unwrap();
 
         let attributes = WindowSurfaceAttributeListBuilder::new().build();
+        let raw_native_window = display.display_handle().platform().optional_native_display().borrow().raw_window.unwrap();
         let egl_window_surface = display
-            .platform_display()
-            .get_platform_window_surface(config_window, attributes)
+            .display_handle()
+            .platform()
+            .get_platform_window_surface((), raw_native_window, config_window, attributes)
             .unwrap();
         let context = display
             .build_opengl_context(opengl_context_builder)
@@ -244,7 +231,7 @@ fn x11() {
     }
 }
 
-fn print_display_info(display: &Display<DefaultPlatform<&mut X11>>) {
+fn print_display_info<P: Platform>(display: &Display<P>) {
     use egl_wrapper::config::attribute::*;
 
     // Test querying version information
@@ -302,16 +289,14 @@ fn print_display_info(display: &Display<DefaultPlatform<&mut X11>>) {
 fn client_extensions() {
     let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
 
-    match display_builder.client_extension_mode() {
-        Ok(client_extensions_builder) => {
-            let client_extensions = client_extensions_builder.client_extensions().unwrap();
-
+    match display_builder.query_client_extensions() {
+        Ok(text) => {
             println!("client extensions: ");
 
-            for ext in client_extensions.split_whitespace() {
+            for ext in text.split_whitespace() {
                 println!("{}", ext);
             }
         }
-        Err(_) => println!("EGL extension EGL_EXT_client_extensions is not supported"),
+        _ => println!("EGL extension EGL_EXT_client_extensions is not supported"),
     }
 }
