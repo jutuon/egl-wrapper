@@ -130,6 +130,15 @@ impl<P: Platform> DisplayHandle<P> {
     pub fn raw_display(&self) -> ffi::types::EGLDisplay {
         self.raw_display
     }
+
+
+    pub fn platform(&self) -> &P {
+        &self.platform
+    }
+
+    pub fn platform_mut(&mut self) -> &mut P {
+        &mut self.platform
+    }
 }
 
 impl<P: Platform> Drop for DisplayHandle<P> {
@@ -394,8 +403,12 @@ impl<P: Platform> Display<P> {
         }
     }
 
-    pub(crate) fn display_handle(&self) -> &Arc<DisplayHandle<P>> {
+    pub fn display_handle(&self) -> &Arc<DisplayHandle<P>> {
         &self.display_handle
+    }
+
+    pub fn display_handle_mut(&mut self) -> &mut Arc<DisplayHandle<P>> {
+        &mut self.display_handle
     }
 
     pub fn extension_function_loader(&self) -> ExtensionFunctionLoader<P> {
@@ -415,9 +428,6 @@ impl<P: Platform> Display<P> {
         Ok(ClientApiSupport::parse(&self.client_apis()?))
     }
 
-    pub fn platform_display(&self) -> &P {
-        &self.display_handle.platform
-    }
 }
 
 use config::client_api::*;
