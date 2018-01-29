@@ -8,7 +8,8 @@ authors = ["Juuso Tuononen <jutuon@outlook.com>"]
 bitflags = "1.0"
 
 [dependencies.egl-sys]
-path = "../egl-sys"
+git = "https://github.com/jutuon/egl-sys"
+rev = "7458c10576d1837b2a25dd2504f66ac728cb1e1c"
 features = [
     "racer_autocomplete_workaround",
     "extensions_module",
@@ -17,7 +18,6 @@ features = [
     "EGL_EXT_platform_x11",
     "EGL_EXT_platform_wayland"
 ]
-#git = "https://github.com/jutuon/egl-sys"
 
 
 [dev-dependencies]
