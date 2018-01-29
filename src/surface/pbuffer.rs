@@ -90,7 +90,7 @@ impl PbufferSurfaceBuilder {
 
     /// Default value: false
     pub fn mipmap_texture(&mut self, value: bool) -> &mut Self {
-        let value = if value { ffi::TRUE } else { ffi::FALSE };
+        let value = if value { ffi::EGL_TRUE } else { ffi::EGL_FALSE };
 
         self.attributes
             .add(ffi::MIPMAP_TEXTURE as EGLint, value as EGLint);
@@ -99,7 +99,7 @@ impl PbufferSurfaceBuilder {
 
     /// Default value: false
     pub fn largest_pbuffer(&mut self, value: bool) -> &mut Self {
-        let value = if value { ffi::TRUE } else { ffi::FALSE };
+        let value = if value { ffi::EGL_TRUE } else { ffi::EGL_FALSE };
 
         self.attributes
             .add(ffi::LARGEST_PBUFFER as EGLint, value as EGLint);

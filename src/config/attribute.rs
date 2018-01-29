@@ -123,7 +123,7 @@ pub trait ConfigUtils: Sized {
             ffi::GetConfigAttrib(self.raw_display(), self.raw_config(), attribute, &mut value)
         };
 
-        if result == ffi::FALSE {
+        if result == ffi::EGL_FALSE {
             return Err(QueryError::QueryError);
         }
 
@@ -263,8 +263,8 @@ pub trait NativeRenderable: ConfigUtils {
         let value = self.query_attrib(ConfigAttribute::NativeRenderable)?;
 
         match value as EGLBoolean {
-            ffi::TRUE => Ok(true),
-            ffi::FALSE => Ok(false),
+            ffi::EGL_TRUE => Ok(true),
+            ffi::EGL_FALSE => Ok(false),
             _ => Err(QueryError::BooleanError),
         }
     }

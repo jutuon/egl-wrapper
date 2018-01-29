@@ -16,7 +16,7 @@ fn destroy_surface<S: Surface>(surface: &mut S) {
     let result =
         unsafe { ffi::DestroySurface(surface.raw_display(), surface.raw_surface()) };
 
-    if result == ffi::FALSE {
+    if result == ffi::EGL_FALSE {
         let error = EGLError::check_errors();
         eprintln!("egl_wrapper: couldn't destroy surface, error: {:?}", error);
     }

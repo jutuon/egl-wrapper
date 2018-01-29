@@ -50,7 +50,7 @@ impl<C: Context, D> SingleContext<C, D> {
             )
         };
 
-        if result == ffi::TRUE {
+        if result == ffi::EGL_TRUE {
             Ok(CurrentSurfaceAndContext {
                 surface,
                 context: self,
@@ -77,7 +77,7 @@ pub(crate) trait RawContextUtils: Context {
     fn bind_api() -> Result<(), Option<EGLError>> {
         let result = unsafe { ffi::BindAPI(Self::API_TYPE) };
 
-        if result == ffi::TRUE {
+        if result == ffi::EGL_TRUE {
             Ok(())
         } else {
             Err(EGLError::check_errors())
@@ -104,7 +104,7 @@ impl<S: Surface, C: Context, D> CurrentSurfaceAndContext<S, C, D> {
             )
         };
 
-        if result == ffi::TRUE {
+        if result == ffi::EGL_TRUE {
             Ok(self)
         } else {
             let error = EGLError::check_errors();
@@ -133,7 +133,7 @@ impl<S: Surface, C: Context, D> CurrentSurfaceAndContext<S, C, D> {
             ffi::SwapInterval(self.context.context().raw_display(), interval.value())
         };
 
-        if result == ffi::TRUE {
+        if result == ffi::EGL_TRUE {
             Ok(())
         } else {
             Err(EGLError::check_errors())
@@ -166,7 +166,7 @@ pub(self) fn destroy_context(
 ) {
     let result = unsafe { ffi::DestroyContext(raw_display, raw_context) };
 
-    if result == ffi::FALSE {
+    if result == ffi::EGL_FALSE {
         eprintln!("egl_wrapper: couldn't destroy context");
     }
 }
