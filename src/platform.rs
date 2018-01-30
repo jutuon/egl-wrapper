@@ -9,12 +9,10 @@ use egl_sys::extensions;
 
 use display::{Display, DisplayCreationError};
 use utils::AttributeListBuilder;
-
 use surface::window::{WindowSurface, WindowSurfaceAttributeList};
-
 use error::EGLError;
-
 use config::client_api::*;
+use EGLHandle;
 
 pub trait Platform: Sized {}
 
@@ -82,6 +80,7 @@ impl<T> Platform for DefaultPlatform<T> {}
 /// EGL extension EGL_EXT_platform_base platforms.
 pub struct EXTPlatform<T> {
     optional_native_display_handle: T,
+    egl_handle: EGLHandle,
 }
 
 #[derive(Debug)]
@@ -97,9 +96,10 @@ impl<T> EXTPlatform<T> {
         ptr_to_native_display: *mut c_void,
         optional_native_display_handle: T,
         attribute_list: EXTPlatformAttributeList,
+        egl_handle: EGLHandle,
     ) -> Result<Display<Self>, DisplayCreationError> {
         let raw_display = unsafe {
-            extensions::GetPlatformDisplayEXT(
+            egl_handle.extension_functions.GetPlatformDisplayEXT(
                 platform_type as EGLenum,
                 ptr_to_native_display,
                 attribute_list.ptr(),
@@ -112,6 +112,7 @@ impl<T> EXTPlatform<T> {
 
         let platform = EXTPlatform {
             optional_native_display_handle,
+            egl_handle
         };
 
         Ok(Display::new(raw_display, platform)?)
@@ -124,7 +125,7 @@ impl<T> EXTPlatform<T> {
         config_window: ConfigWindow<Self>,
         attribute_list: WindowSurfaceAttributeList,
     ) -> Result<WindowSurface<W, Self>, WindowCreationError> {
-        let raw_surface = extensions::CreatePlatformWindowSurfaceEXT(
+        let raw_surface = self.egl_handle.extension_functions.CreatePlatformWindowSurfaceEXT(
             config_window.display_config().raw_display(),
             config_window.display_config().raw_config(),
             raw_native_window,

@@ -22,8 +22,10 @@ use ffi::types::EGLint;
 use display::{Display, DisplayCreationError};
 use error::EGLError;
 
+use std::fmt;
 use std::borrow::Cow;
 use std::ffi::CStr;
+use std::sync::Arc;
 
 use platform::DefaultPlatform;
 
@@ -34,6 +36,32 @@ fn load_extension(text: &str) -> *const c_void {
     get_proc_address(text).unwrap()
 }
 
+#[derive(Clone)]
+pub struct EGLHandle {
+    pub(crate) extension_functions: Arc<extensions::Egl>,
+}
+
+impl fmt::Debug for EGLHandle {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "EGLHandle")
+    }
+}
+
+impl EGLHandle {
+    pub fn load() -> Result<Self, ()> {
+        let extension_functions = extensions::Egl::load_with(load_extension);
+
+        Ok(EGLHandle {
+            extension_functions: Arc::new(extension_functions)
+        })
+    }
+
+    pub fn display_builder(&self) -> DisplayBuilder {
+        DisplayBuilder::new(self.clone())
+    }
+}
+
+
 #[derive(Debug)]
 struct ClientExtensions {
     ext_platform_x11: bool,
@@ -41,24 +69,16 @@ struct ClientExtensions {
 }
 
 impl ClientExtensions {
-    fn parse(text: &str) -> ClientExtensions {
+    fn parse(text: &str, functions: &EGLHandle) -> Result<ClientExtensions, ()> {
         let mut extensions = ClientExtensions::default();
 
         for ext in text.split_whitespace() {
             match ext {
                 "EGL_EXT_platform_base" => {
-                    extensions::GetPlatformDisplayEXT::load_with(load_extension);
-                    extensions::CreatePlatformWindowSurfaceEXT::load_with(load_extension);
-                    extensions::CreatePlatformPixmapSurfaceEXT::load_with(load_extension);
-
-                    if !extensions::GetPlatformDisplayEXT::is_loaded() {
-                        panic!()
-                    }
-                    if !extensions::CreatePlatformWindowSurfaceEXT::is_loaded() {
-                        panic!()
-                    }
-                    if !extensions::CreatePlatformPixmapSurfaceEXT::is_loaded() {
-                        panic!()
+                    if !functions.extension_functions.GetPlatformDisplayEXT.is_loaded() ||
+                        !functions.extension_functions.CreatePlatformWindowSurfaceEXT.is_loaded() ||
+                        !functions.extension_functions.CreatePlatformPixmapSurfaceEXT.is_loaded() {
+                            return Err(())
                     }
                 }
                 "EGL_EXT_platform_x11" => extensions.ext_platform_x11 = true,
@@ -67,7 +87,9 @@ impl ClientExtensions {
             }
         }
 
-        extensions
+        // TODO: If platform extension is found, require EGL_EXT_platform_base.
+
+        Ok(extensions)
     }
 }
 
@@ -83,22 +105,27 @@ impl Default for ClientExtensions {
 #[derive(Debug)]
 pub struct DisplayBuilder {
     client_extensions: Option<ClientExtensions>,
+    egl_handle: EGLHandle,
 }
 
 impl DisplayBuilder {
-    pub fn new() -> Result<DisplayBuilder, ()> {
+    fn new(egl_handle: EGLHandle) -> DisplayBuilder {
         let mut display_builder = DisplayBuilder {
             client_extensions: None,
+            egl_handle
         };
 
         display_builder.parse_client_extensions();
 
-        Ok(display_builder)
+        display_builder
     }
 
     fn parse_client_extensions(&mut self) {
         let extensions = if let Ok(extensions) = self.query_client_extensions() {
-            ClientExtensions::parse(&extensions)
+            match ClientExtensions::parse(&extensions, &self.egl_handle) {
+                Ok(extensions) => extensions,
+                Err(()) => return,
+            }
         } else {
             return;
         };
@@ -152,11 +179,14 @@ impl DisplayBuilder {
         native: T,
         attributes: Option<EXTPlatformAttributeList>,
     ) -> Result<Display<EXTPlatform<T>>, (Self, DisplayCreationError)> {
+        // TODO: check client extension support
+
         EXTPlatform::get_display(
             display_type,
             native_display_ptr,
             native,
             attributes.unwrap_or_default(),
+            self.egl_handle.clone()
         ).map_err(|e| (self, e))
     }
 }
