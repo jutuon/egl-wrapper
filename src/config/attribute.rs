@@ -6,6 +6,8 @@ use egl_sys::ffi::types::{EGLBoolean, EGLenum, EGLint};
 use utils::{IntegerError, PositiveInteger, QueryError, UnsignedInteger};
 use display::DisplayExtensionSupport;
 
+use EGLHandle;
+
 /// Color buffer type and bit counts of colors.
 #[derive(Debug)]
 pub enum ColorBuffer {
@@ -113,6 +115,7 @@ pub trait ConfigUtils: Sized {
     fn raw_config(&self) -> ffi::types::EGLConfig;
     fn raw_display(&self) -> ffi::types::EGLDisplay;
     fn display_extensions(&self) -> &DisplayExtensionSupport;
+    fn egl_handle(&self) -> &EGLHandle;
 
     fn query_attrib(&self, attribute: ConfigAttribute) -> ConfigResult<EGLint> {
         let attribute = attribute as EGLint;
@@ -120,7 +123,7 @@ pub trait ConfigUtils: Sized {
         let mut value = 0;
 
         let result = unsafe {
-            ffi::GetConfigAttrib(self.raw_display(), self.raw_config(), attribute, &mut value)
+            egl_function!(self.egl_handle(), GetConfigAttrib(self.raw_display(), self.raw_config(), attribute, &mut value))
         };
 
         if result == ffi::EGL_FALSE {

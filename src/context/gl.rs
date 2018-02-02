@@ -11,6 +11,7 @@ use context::{Context, RawContextUtils};
 use config::client_api::ConfigOpenGL;
 use utils::{AttributeListBuilder, PositiveInteger, UnsignedInteger};
 use error::EGLError;
+use EGLHandle;
 
 use super::attribute::{CommonAttributes, ContextAttributeUtils, OpenGLContextFlags,
                        OpenGLContextProfile, ResetNotificationStrategy};
@@ -27,7 +28,7 @@ impl<P: Platform> CommonAttributes for OpenGLContext<P> {}
 
 impl<P: Platform> Drop for OpenGLContext<P> {
     fn drop(&mut self) {
-        super::destroy_context(self.raw_display(), self.raw_context);
+        super::destroy_context(self.config_opengl.egl_handle(), self.raw_display(), self.raw_context);
     }
 }
 
@@ -42,6 +43,10 @@ impl<P: Platform> Context for OpenGLContext<P> {
 
     fn raw_context(&self) -> ffi::types::EGLContext {
         self.raw_context
+    }
+
+    fn egl_handle(&self) -> &EGLHandle {
+        self.config_opengl.egl_handle()
     }
 }
 
@@ -62,19 +67,22 @@ impl<P: Platform> OpenGLContextBuilder<P> {
     pub(crate) fn build(self) -> Result<OpenGLContext<P>, Option<EGLError>> {
         let attribute_list = self.attributes.build();
 
-        OpenGLContext::<P>::bind_api()?;
+        OpenGLContext::<P>::bind_api(self.config_opengl.egl_handle())?;
 
         let raw_context = unsafe {
-            ffi::CreateContext(
-                self.config_opengl.display_config().raw_display(),
-                self.config_opengl.display_config().raw_config(),
-                ffi::NO_CONTEXT,
-                attribute_list.ptr(),
+            egl_function!(
+                self.config_opengl.egl_handle(),
+                CreateContext(
+                    self.config_opengl.display_config().raw_display(),
+                    self.config_opengl.display_config().raw_config(),
+                    ffi::NO_CONTEXT,
+                    attribute_list.ptr()
+                )
             )
         };
 
         if raw_context == ffi::NO_CONTEXT {
-            Err(EGLError::check_errors())
+            Err(EGLError::check_errors(self.config_opengl.egl_handle()))
         } else {
             let context = OpenGLContext {
                 config_opengl: self.config_opengl,

@@ -6,6 +6,7 @@ use egl_sys::ffi::types::EGLint;
 use utils::{AttributeList, AttributeListBuilder, AttributeListTrait};
 use config::client_api::ConfigWindow;
 use platform::Platform;
+use EGLHandle;
 
 use super::{destroy_surface, Surface};
 
@@ -42,6 +43,10 @@ impl<T, P: Platform> Surface for WindowSurface<T, P> {
 
     fn raw_display(&self) -> ffi::types::EGLDisplay {
         self.window_config.display_config().raw_display()
+    }
+
+    fn egl_handle(&self) -> &EGLHandle {
+        self.window_config.display_config().egl_handle()
     }
 }
 

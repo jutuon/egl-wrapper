@@ -9,6 +9,7 @@ use egl_sys::ffi;
 
 use platform::Platform;
 use display::{DisplayExtensionSupport, DisplayHandle, DisplayType};
+use EGLHandle;
 
 use self::attribute::*;
 
@@ -38,6 +39,10 @@ impl<P: Platform> DisplayConfig<P> {
 
     pub fn raw_config(&self) -> ffi::types::EGLConfig {
         self.raw_config
+    }
+
+    pub fn egl_handle(&self) -> &EGLHandle {
+        self.display_handle.egl_handle()
     }
 }
 
@@ -141,6 +146,10 @@ impl<'a, D: DisplayType + 'a> ConfigUtils for Config<'a, D> {
 
     fn display_extensions(&self) -> &DisplayExtensionSupport {
         self.display.display_extensions()
+    }
+
+    fn egl_handle(&self) -> &EGLHandle {
+        self.display.egl_handle()
     }
 }
 

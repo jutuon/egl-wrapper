@@ -27,11 +27,14 @@ pub trait ContextAttributeUtils: Context {
     fn query_attribute(&self, attribute: QueryableAttribute) -> QueryResult<EGLint> {
         let mut value = 0;
         let result = unsafe {
-            ffi::QueryContext(
-                self.raw_display(),
-                self.raw_context(),
-                attribute as EGLint,
-                &mut value,
+            egl_function!(
+                self.egl_handle(),
+                QueryContext(
+                    self.raw_display(),
+                    self.raw_context(),
+                    attribute as EGLint,
+                    &mut value
+                )
             )
         };
 

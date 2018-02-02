@@ -1,6 +1,8 @@
 use egl_sys::ffi::types::EGLenum;
 use egl_sys::ffi;
 
+use EGLHandle;
+
 #[derive(Debug)]
 pub enum EGLError {
     NotInitialized,
@@ -22,8 +24,8 @@ pub enum EGLError {
 
 impl EGLError {
     /// Returns `Some(error)` if there is an error.
-    pub(crate) fn check_errors() -> Option<EGLError> {
-        let result = unsafe { ffi::GetError() };
+    pub(crate) fn check_errors(_egl_handle: &EGLHandle) -> Option<EGLError> {
+        let result = unsafe { egl_function!(_egl_handle, GetError()) };
 
         if result < 0 {
             eprintln!("egl_wrapper: unknown EGL error value: {}", result);

@@ -11,6 +11,7 @@ use context::{Context, RawContextUtils};
 use config::client_api::ConfigOpenGLES;
 use utils::{AttributeListBuilder, UnsignedInteger};
 use error::EGLError;
+use EGLHandle;
 
 use super::attribute::{AttributeOpenGLESVersion, CommonAttributes, ContextAttributeUtils};
 
@@ -44,7 +45,7 @@ impl<P: Platform> AttributeOpenGLESVersion for OpenGLESContext<P> {}
 
 impl<P: Platform> Drop for OpenGLESContext<P> {
     fn drop(&mut self) {
-        super::destroy_context(self.raw_display(), self.raw_context);
+        super::destroy_context(self.config_opengl.egl_handle(), self.raw_display(), self.raw_context);
     }
 }
 
@@ -59,6 +60,10 @@ impl<P: Platform> Context for OpenGLESContext<P> {
 
     fn raw_context(&self) -> ffi::types::EGLContext {
         self.raw_context
+    }
+
+    fn egl_handle(&self) -> &EGLHandle {
+        self.config_opengl.egl_handle()
     }
 }
 
@@ -85,19 +90,22 @@ impl<P: Platform> OpenGLESContextBuilder<P> {
     pub(crate) fn build(self) -> Result<OpenGLESContext<P>, Option<EGLError>> {
         let attribute_list = self.attributes.build();
 
-        OpenGLESContext::<P>::bind_api()?;
+        OpenGLESContext::<P>::bind_api(self.config_opengl.egl_handle())?;
 
         let raw_context = unsafe {
-            ffi::CreateContext(
-                self.config_opengl.display_config().raw_display(),
-                self.config_opengl.display_config().raw_config(),
-                ffi::NO_CONTEXT,
-                attribute_list.ptr(),
+            egl_function!(
+                self.config_opengl.egl_handle(),
+                CreateContext(
+                    self.config_opengl.display_config().raw_display(),
+                    self.config_opengl.display_config().raw_config(),
+                    ffi::NO_CONTEXT,
+                    attribute_list.ptr()
+                )
             )
         };
 
         if raw_context == ffi::NO_CONTEXT {
-            Err(EGLError::check_errors())
+            Err(EGLError::check_errors(self.config_opengl.egl_handle()))
         } else {
             let context = OpenGLESContext {
                 config_opengl: self.config_opengl,

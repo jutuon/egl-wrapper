@@ -2,6 +2,8 @@ use super::DisplayConfig;
 
 use platform::Platform;
 
+use EGLHandle;
+
 macro_rules! config_type {
     ( $name: ident ) => {
         #[derive(Debug, Clone)]
@@ -18,6 +20,10 @@ macro_rules! config_type {
 
             pub fn display_config(&self) -> &DisplayConfig<P> {
                 &self.display_config
+            }
+
+            pub fn egl_handle(&self) -> &EGLHandle {
+                self.display_config.egl_handle()
             }
         }
     };

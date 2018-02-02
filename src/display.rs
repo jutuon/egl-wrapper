@@ -17,6 +17,8 @@ use context::SingleContext;
 use error::EGLError;
 use platform::Platform;
 
+use EGLHandle;
+
 #[derive(Debug, Clone)]
 pub struct DisplayExtensionSupport {
     get_all_proc_addresses: bool,
@@ -139,17 +141,21 @@ impl<P: Platform> DisplayHandle<P> {
     pub fn platform_mut(&mut self) -> &mut P {
         &mut self.platform
     }
+
+    pub fn egl_handle(&self) -> &EGLHandle {
+        self.platform.egl_handle()
+    }
 }
 
 impl<P: Platform> Drop for DisplayHandle<P> {
     fn drop(&mut self) {
-        let result = unsafe { ffi::Terminate(self.raw_display) };
+        let result = unsafe { egl_function!(self.egl_handle(), Terminate(self.raw_display)) };
 
         if result == ffi::EGL_FALSE {
             eprintln!("egl_wrapper: eglTerminate returned false");
         }
 
-        let result = unsafe { ffi::ReleaseThread() };
+        let result = unsafe { egl_function!(self.egl_handle(), ReleaseThread()) };
 
         if result == ffi::EGL_FALSE {
             eprintln!("egl_wrapper: eglReleaseThread returned false");
@@ -176,7 +182,7 @@ impl<P: Platform> Display<P> {
         let mut version_minor = 0;
 
         let result =
-            unsafe { ffi::Initialize(raw_display, &mut version_major, &mut version_minor) };
+            unsafe { egl_function!(platform.egl_handle(), Initialize(raw_display, &mut version_major, &mut version_minor)) };
 
         if result == ffi::EGL_FALSE {
             return Err(DisplayCreationError::EGLInitializationError);
@@ -239,7 +245,7 @@ impl<P: Platform> Display<P> {
 
     fn query_string(&self, name: EGLint) -> Result<Cow<str>, ()> {
         unsafe {
-            let ptr = ffi::QueryString(self.display_handle().raw_display(), name);
+            let ptr = egl_function!(self.display_handle().egl_handle(), QueryString(self.display_handle().raw_display(), name));
 
             if ptr.is_null() {
                 return Err(());
@@ -258,11 +264,14 @@ impl<P: Platform> Display<P> {
         let mut new_count = 0;
 
         unsafe {
-            let result = ffi::GetConfigs(
-                self.display_handle().raw_display(),
-                vec.as_mut_slice().as_mut_ptr(),
-                buf_config_count,
-                &mut new_count,
+            let result = egl_function!(
+                self.display_handle().egl_handle(),
+                GetConfigs(
+                    self.display_handle().raw_display(),
+                    vec.as_mut_slice().as_mut_ptr(),
+                    buf_config_count,
+                    &mut new_count
+                )
             );
 
             if result == ffi::EGL_FALSE {
@@ -283,11 +292,14 @@ impl<P: Platform> Display<P> {
         let mut count = 0;
 
         unsafe {
-            let result = ffi::GetConfigs(
-                self.display_handle().raw_display(),
-                ptr::null_mut(),
-                0,
-                &mut count,
+            let result = egl_function!(
+                self.display_handle().egl_handle(),
+                GetConfigs(
+                    self.display_handle().raw_display(),
+                    ptr::null_mut(),
+                    0,
+                    &mut count
+                )
             );
 
             if result == ffi::EGL_FALSE {
@@ -313,12 +325,15 @@ impl<P: Platform> Display<P> {
         let mut count = 0;
 
         unsafe {
-            let result = ffi::ChooseConfig(
-                self.display_handle().raw_display(),
-                options.attribute_list().ptr(),
-                ptr::null_mut(),
-                0,
-                &mut count,
+            let result = egl_function!(
+                self.display_handle().egl_handle(),
+                ChooseConfig(
+                    self.display_handle().raw_display(),
+                    options.attribute_list().ptr(),
+                    ptr::null_mut(),
+                    0,
+                    &mut count
+                )
             );
 
             if result == ffi::EGL_FALSE {
@@ -337,12 +352,15 @@ impl<P: Platform> Display<P> {
         let mut new_count = 0;
 
         unsafe {
-            let result = ffi::ChooseConfig(
-                self.display_handle().raw_display(),
-                options.attribute_list().ptr(),
-                vec.as_mut_slice().as_mut_ptr(),
-                count,
-                &mut new_count,
+            let result = egl_function!(
+                self.display_handle().egl_handle(),
+                ChooseConfig(
+                    self.display_handle().raw_display(),
+                    options.attribute_list().ptr(),
+                    vec.as_mut_slice().as_mut_ptr(),
+                    count,
+                    &mut new_count
+                )
             );
 
             if result == ffi::EGL_FALSE {
@@ -412,14 +430,14 @@ impl<P: Platform> Display<P> {
     }
 
     pub fn extension_function_loader(&self) -> ExtensionFunctionLoader<P> {
-        ExtensionFunctionLoader { _display: self }
+        ExtensionFunctionLoader { display: self }
     }
 
     /// Returns `Some(function_loader)` if EGL extension
     /// `EGL_KHR_get_all_proc_addresses` is supported.
     pub fn function_loader(&self) -> Option<FunctionLoader<P>> {
         match self.extension_support.get_all_proc_addresses {
-            true => Some(FunctionLoader { _display: self }),
+            true => Some(FunctionLoader { display: self }),
             false => None,
         }
     }
@@ -539,40 +557,44 @@ impl<P: Platform, E> DisplayError<P, E> {
 
 /// Load client API and EGL extension function pointers
 pub struct ExtensionFunctionLoader<'a, P: Platform + 'a> {
-    _display: &'a Display<P>,
+    display: &'a Display<P>,
 }
 
 impl<'a, P: Platform + 'a> ExtensionFunctionLoader<'a, P> {
     /// If null is returned the function does not exists.
     /// A non null value does not guarantee existence of the extension function.
     pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
-        get_proc_address(name)
+        get_proc_address(self.display.display_handle().egl_handle(), name)
     }
 }
 
 /// Load client API and EGL function pointers.
 /// Supports all functions, not only extensions functions.
 pub struct FunctionLoader<'a, P: Platform + 'a> {
-    _display: &'a Display<P>,
+    display: &'a Display<P>,
 }
 
 impl<'a, P: Platform + 'a> FunctionLoader<'a, P> {
     /// If null is returned the function does not exists.
     /// A non null value does not guarantee existence of the function.
     pub fn get_proc_address(&self, name: &str) -> Result<*const os::raw::c_void, NulError> {
-        get_proc_address(name)
+        get_proc_address(self.display.display_handle().egl_handle(), name)
     }
 }
 
-pub(crate) fn get_proc_address(name: &str) -> Result<*const os::raw::c_void, NulError> {
+pub(crate) fn get_proc_address(_egl_handle: &EGLHandle, name: &str) -> Result<*const os::raw::c_void, NulError> {
     let c_string = match CString::new(name) {
         Ok(s) => s,
         Err(error) => return Err(error),
     };
 
     unsafe {
-        Ok(ffi::GetProcAddress(c_string.as_ptr())
-            as *const os::raw::c_void)
+        let function_pointer = egl_function!(
+            _egl_handle,
+            GetProcAddress(c_string.as_ptr())
+        ) as *const os::raw::c_void;
+
+        Ok(function_pointer)
     }
 }
 
@@ -588,10 +610,15 @@ impl<T: Platform> DisplayType for Display<T> {
     fn display_extensions(&self) -> &DisplayExtensionSupport {
         &self.extension_support
     }
+
+    fn egl_handle(&self) -> &EGLHandle {
+        self.display_handle.egl_handle()
+    }
 }
 
 pub trait DisplayType {
     fn raw_display(&self) -> ffi::types::EGLDisplay;
     fn display_extensions(&self) -> &DisplayExtensionSupport;
     fn egl_version(&self) -> EGLVersion;
+    fn egl_handle(&self) -> &EGLHandle;
 }

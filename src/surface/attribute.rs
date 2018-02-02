@@ -82,29 +82,35 @@ pub trait SurfaceAttributeUtils: Surface {
         value: EGLint,
     ) -> Result<(), Option<EGLError>> {
         let result = unsafe {
-            ffi::SurfaceAttrib(
-                self.raw_display(),
-                self.raw_surface(),
-                attribute as EGLint,
-                value,
+            egl_function!(
+                self.egl_handle(),
+                SurfaceAttrib(
+                    self.raw_display(),
+                    self.raw_surface(),
+                    attribute as EGLint,
+                    value
+                )
             )
         };
 
         if result == ffi::EGL_TRUE {
             Ok(())
         } else {
-            Err(EGLError::check_errors())
+            Err(EGLError::check_errors(self.egl_handle()))
         }
     }
 
     fn query_attribute(&self, attribute: QueryableAttribute) -> QueryResult<EGLint> {
         let mut value = 0;
         let result = unsafe {
-            ffi::QuerySurface(
-                self.raw_display(),
-                self.raw_surface(),
-                attribute as EGLint,
-                &mut value,
+            egl_function!(
+                self.egl_handle(),
+                QuerySurface(
+                    self.raw_display(),
+                    self.raw_surface(),
+                    attribute as EGLint,
+                    &mut value
+                )
             )
         };
 

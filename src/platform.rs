@@ -14,20 +14,24 @@ use error::EGLError;
 use config::client_api::*;
 use EGLHandle;
 
-pub trait Platform: Sized {}
+pub trait Platform: Sized {
+    fn egl_handle(&self) -> &EGLHandle;
+}
 
 #[derive(Debug)]
 /// EGL implementation default platform.
 pub struct DefaultPlatform<T> {
     optional_native_display_handle: T,
+    egl_handle: EGLHandle,
 }
 
 impl<T> DefaultPlatform<T> {
     pub(crate) fn get_display(
+        egl_handle: EGLHandle,
         native_display: NativeDisplayType,
         optional_native_display_handle: T,
     ) -> Result<Display<Self>, DisplayCreationError> {
-        let raw_display = unsafe { ffi::GetDisplay(native_display) };
+        let raw_display = unsafe { egl_function!(egl_handle, GetDisplay(native_display)) };
 
         if raw_display == ffi::NO_DISPLAY {
             return Err(DisplayCreationError::NoMatchingDisplay);
@@ -35,6 +39,7 @@ impl<T> DefaultPlatform<T> {
 
         let platform = DefaultPlatform {
             optional_native_display_handle,
+            egl_handle: egl_handle.clone(),
         };
 
         Ok(Display::new(raw_display, platform)?)
@@ -47,15 +52,15 @@ impl<T> DefaultPlatform<T> {
         config_window: ConfigWindow<Self>,
         attribute_list: WindowSurfaceAttributeList,
     ) -> Result<WindowSurface<W, Self>, WindowCreationError> {
-        let raw_surface = ffi::CreateWindowSurface(
+        let raw_surface = egl_function!(self.egl_handle, CreateWindowSurface(
             config_window.display_config().raw_display(),
             config_window.display_config().raw_config(),
             raw_native_window,
-            attribute_list.ptr(),
-        );
+            attribute_list.ptr()
+        ));
 
         if raw_surface == ffi::NO_SURFACE {
-            return Err(WindowCreationError::EGLError(EGLError::check_errors()));
+            return Err(WindowCreationError::EGLError(EGLError::check_errors(&self.egl_handle)));
         }
 
         Ok(WindowSurface::new(
@@ -74,7 +79,11 @@ impl<T> DefaultPlatform<T> {
     }
 }
 
-impl<T> Platform for DefaultPlatform<T> {}
+impl<T> Platform for DefaultPlatform<T> {
+    fn egl_handle(&self) -> &EGLHandle {
+        &self.egl_handle
+    }
+}
 
 #[derive(Debug)]
 /// EGL extension EGL_EXT_platform_base platforms.
@@ -99,7 +108,7 @@ impl<T> EXTPlatform<T> {
         egl_handle: EGLHandle,
     ) -> Result<Display<Self>, DisplayCreationError> {
         let raw_display = unsafe {
-            egl_handle.extension_functions.GetPlatformDisplayEXT(
+            egl_handle.functions.extensions.GetPlatformDisplayEXT(
                 platform_type as EGLenum,
                 ptr_to_native_display,
                 attribute_list.ptr(),
@@ -125,7 +134,7 @@ impl<T> EXTPlatform<T> {
         config_window: ConfigWindow<Self>,
         attribute_list: WindowSurfaceAttributeList,
     ) -> Result<WindowSurface<W, Self>, WindowCreationError> {
-        let raw_surface = self.egl_handle.extension_functions.CreatePlatformWindowSurfaceEXT(
+        let raw_surface = self.egl_handle.functions.extensions.CreatePlatformWindowSurfaceEXT(
             config_window.display_config().raw_display(),
             config_window.display_config().raw_config(),
             raw_native_window,
@@ -133,7 +142,7 @@ impl<T> EXTPlatform<T> {
         );
 
         if raw_surface == ffi::NO_SURFACE {
-            return Err(WindowCreationError::EGLError(EGLError::check_errors()));
+            return Err(WindowCreationError::EGLError(EGLError::check_errors(&self.egl_handle)));
         }
 
         Ok(WindowSurface::new(
@@ -178,7 +187,11 @@ impl Default for EXTPlatformAttributeList {
     }
 }
 
-impl<T> Platform for EXTPlatform<T> {}
+impl<T> Platform for EXTPlatform<T> {
+    fn egl_handle(&self) -> &EGLHandle {
+        &self.egl_handle
+    }
+}
 
 #[derive(Debug)]
 pub enum WindowCreationError {
