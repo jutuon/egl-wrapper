@@ -78,6 +78,10 @@ pub(crate) struct EGLFunctions {
     pub(crate) extensions: extensions::Egl,
 }
 
+#[cfg(all(unix, feature = "runtime-linking"))]
+const EGL_LIBRARY_NAME: &'static str = "libEGL.so.1";
+
+
 #[derive(Clone)]
 pub struct EGLHandle {
     pub(crate) functions: Arc<EGLFunctions>,
@@ -128,7 +132,7 @@ impl EGLHandle {
         if *init_flag_guard {
             Err(EGLInitError::AlreadyInitialized)
         } else {
-            let egl_library = libloading::Library::new("EGL").map_err(|e| EGLInitError::LibraryLoadingError(e))?;
+            let egl_library = libloading::Library::new(EGL_LIBRARY_NAME).map_err(|e| EGLInitError::LibraryLoadingError(e))?;
 
             let mut loading_error: Option<io::Error> = None;
 

@@ -15,8 +15,8 @@ use std::cell::RefCell;
 
 use egl_wrapper::display::{Display, DisplayType};
 use egl_wrapper::surface::window::WindowSurfaceAttributeListBuilder;
-
 use egl_wrapper::platform::{DefaultPlatform, Platform};
+use egl_wrapper::EGLHandle;
 
 use utils::{print_opengl_info, search_configs};
 
@@ -26,8 +26,10 @@ extern "C" {}
 fn main() {
     println!("{}", "Hello world");
 
-    client_extensions();
-    x11();
+    let egl_handle = EGLHandle::load().unwrap();
+
+    client_extensions(&egl_handle);
+    x11(&egl_handle);
 }
 
 #[derive(Debug)]
@@ -159,11 +161,11 @@ impl Drop for X11 {
     }
 }
 
-fn x11() {
+fn x11(egl_handle: &EGLHandle) {
     unsafe {
         let x11 = X11::new().unwrap();
 
-        let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
+        let display_builder = egl_handle.display_builder();
 
         let display: Display<DefaultPlatform<RefCell<X11>>> = display_builder
             .build_default_platform_display(x11.raw_display, RefCell::new(x11))
@@ -286,8 +288,8 @@ fn print_display_info<P: Platform>(display: &Display<P>) {
     //thread::sleep(Duration::from_secs(2));
 }
 
-fn client_extensions() {
-    let display_builder = egl_wrapper::DisplayBuilder::new().unwrap();
+fn client_extensions(egl_handle: &EGLHandle) {
+    let display_builder = egl_handle.display_builder();
 
     match display_builder.query_client_extensions() {
         Ok(text) => {
