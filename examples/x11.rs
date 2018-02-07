@@ -1,27 +1,23 @@
 extern crate egl_wrapper;
 
 extern crate gl;
-extern crate x11;
+extern crate x11_wrapper;
 
 mod utils;
 
-use x11::xlib;
+use std::sync::Arc;
 
-use std::ptr::null;
-use std::thread;
-use std::time::Duration;
-use std::mem;
-use std::cell::RefCell;
+use x11_wrapper::XlibHandle;
+use x11_wrapper::core::window::input_output::{InputOutputWindowBuilder, TopLevelInputOutputWindow};
+use x11_wrapper::core::window::{Window};
+use x11_wrapper::core::event::{SimpleEvent, EventBuffer};
+use x11_wrapper::protocol::Protocols;
+use x11_wrapper::core::display::DisplayHandle;
 
 use egl_wrapper::display::{Display, DisplayType};
-use egl_wrapper::surface::window::WindowSurfaceAttributeListBuilder;
+use egl_wrapper::surface::window::{WindowSurfaceAttributeListBuilder, WindowSurface};
 use egl_wrapper::platform::{DefaultPlatform, Platform};
 use egl_wrapper::EGLHandle;
-
-use utils::{print_opengl_info, search_configs};
-
-#[link(name = "X11")]
-extern "C" {}
 
 fn main() {
     println!("{}", "Hello world");
@@ -32,204 +28,132 @@ fn main() {
     x11(&egl_handle);
 }
 
-#[derive(Debug)]
-struct X11 {
-    raw_display: *mut x11::xlib::Display,
-    raw_window: Option<x11::xlib::Window>,
-}
+fn x11(egl_handle: &EGLHandle) {
+    let xlib_handle = XlibHandle::initialize_xlib().unwrap();
+    let mut x11_display = xlib_handle.create_display().unwrap();
 
-impl X11 {
-    fn new() -> Result<X11, ()> {
-        let raw_display = unsafe { xlib::XOpenDisplay(null()) };
+    // Create EGLDisplay
 
-        if raw_display.is_null() {
-            println!("x11 display creation error");
-            return Err(());
-        }
+    let display_builder = egl_handle.display_builder();
 
-        Ok(X11 {
-            raw_display,
-            raw_window: None,
-        })
+    // TODO: mark build_default_platform_display as unsafe
+    let display: Display<DefaultPlatform<Arc<DisplayHandle>>> = unsafe {
+        display_builder.build_default_platform_display(x11_display.raw_display(), x11_display.display_handle().clone())
+            .expect("error")
+    };
+
+    print_display_info(&display);
+
+    let client_api_support = display.client_api_support().unwrap();
+
+    if !client_api_support.opengl && !client_api_support.opengl_es {
+        println!("OpenGL or OpenGL ES support is required");
+
+        return;
     }
 
-    fn create_window(&mut self, visual_id: xlib::VisualID) -> Result<(), ()> {
-        println!("visual id: {}", visual_id);
+    // Find EGLConfig
 
-        unsafe {
-            let mut visual_info_template: xlib::XVisualInfo = mem::zeroed();
+    let (config_window, opengl_context_builder, visual_id) = {
+        use egl_wrapper::config::attribute::NativeRenderable;
 
-            visual_info_template.visualid = visual_id;
+        let config = utils::search_configs(&display).into_iter().next().unwrap();
+        let config_window = display.window_surface(&config).unwrap().unwrap();
+        let opengl_context_builder = display.opengl_context_builder(&config).unwrap().unwrap();
 
-            let mut visual_count = 0;
+        let visual_id = config.native_visual_id().unwrap().unwrap();
+        (config_window, opengl_context_builder, visual_id)
+    };
 
-            let visual_info_ptr: *mut xlib::XVisualInfo = xlib::XGetVisualInfo(
-                self.raw_display,
-                xlib::VisualIDMask,
-                &mut visual_info_template,
-                &mut visual_count,
-            );
+    // Create X11 window
 
-            println!("visual_count: {}", visual_count);
+    let default_screen = x11_display.default_screen();
+    let visual = x11_display.visual_from_id(visual_id as x11_wrapper::x11::xlib::XID).expect("unsupported X11 visual");
 
-            if visual_info_ptr.is_null() {
-                println!("error: visual info ptr is null");
-                return Err(());
-            }
+    let mut protocols = Protocols::new();
+    let delete_window_handler = protocols.enable_delete_window(&x11_display).unwrap();
 
-            let colormap: xlib::Colormap = xlib::XCreateColormap(
-                self.raw_display,
-                xlib::XRootWindow(self.raw_display, 0),
-                (*visual_info_ptr).visual,
-                xlib::AllocNone,
-            );
+    let window = InputOutputWindowBuilder::new(&default_screen, visual)
+        .unwrap()
+        .build_input_output_window()
+        .unwrap()
+        .start_configuring_normal_hints()
+        .unwrap()
+        .set_min_window_size(640, 480)
+        .end()
+        .set_protocols(protocols.protocol_atom_list())
+        .unwrap()
+        .map_window();
+    // TODO: map window with mutable reference
 
-            if colormap == 0 {
-                println!("error: colormap is null");
-                return Err(());
-            }
+    x11_display.flush_output_buffer();
 
-            println!("colormap id: {}", colormap);
+    // Create EGLSurface
 
-            let mut window_attributes = xlib::XSetWindowAttributes {
-                background_pixmap: 0,
-                background_pixel: 0,
-                border_pixmap: 0,
-                border_pixel: 0,
-                bit_gravity: 0,
-                win_gravity: 0,
-                backing_store: 0,
-                backing_planes: 0,
-                backing_pixel: 0,
-                save_under: 0,
-                event_mask: 0,
-                do_not_propagate_mask: 0,
-                override_redirect: 0,
-                colormap,
-                cursor: 0,
-            };
+    // TODO: implement Default for WindowSurfaceAttributeListBuilder
+    let attributes = WindowSurfaceAttributeListBuilder::new().build();
+    let egl_window_surface: WindowSurface<TopLevelInputOutputWindow, DefaultPlatform<Arc<DisplayHandle>>> = unsafe {
+        let window_id = window.window_id();
+        display.display_handle()
+            .platform()
+            .get_platform_window_surface(window, window_id, config_window, attributes)
+            .unwrap()
+    };
 
-            let window = xlib::XCreateWindow(
-                self.raw_display,
-                xlib::XDefaultRootWindow(self.raw_display),
-                0,
-                0,
-                640,
-                480,
-                0,
-                (*visual_info_ptr).depth,
-                xlib::InputOutput as u32,
-                (*visual_info_ptr).visual,
-                xlib::CWColormap,
-                &mut window_attributes,
-            );
+    // TODO: add methods WindowSurface to get reference to native window handle
 
-            println!("window id: {}", window);
+    // Create OpenGL context
 
-            xlib::XSelectInput(self.raw_display, window, xlib::StructureNotifyMask);
+    let context = display
+        .build_opengl_context(opengl_context_builder)
+        .unwrap();
 
-            xlib::XMapWindow(self.raw_display, window);
+    let mut current_context = context.make_current(egl_window_surface).unwrap();
 
-            let mut event: xlib::XEvent = mem::zeroed();
+    // Load OpenGL functions
 
-            loop {
-                xlib::XNextEvent(self.raw_display, &mut event);
-                if event.type_ == xlib::MapNotify {
+    {
+        let function_loader = current_context
+            .context()
+            .display()
+            .function_loader()
+            .unwrap();
+        gl::load_with(|s| function_loader.get_proc_address(s).unwrap());
+    }
+
+    utils::print_opengl_info();
+
+    // Clear color buffer and swap buffers
+
+    unsafe {
+        gl::ClearColor(0.0, 0.5, 0.8, 0.0);
+        gl::Clear(gl::COLOR_BUFFER_BIT);
+    }
+
+    current_context = current_context.swap_buffers().unwrap();
+
+    // Handle X11 events
+
+    let mut event_buffer = EventBuffer::new();
+
+    loop {
+        if let Some(error) = x11_wrapper::check_error(&x11_display) {
+            eprintln!("xlib error: {:?}", error);
+            break;
+        }
+
+        let event = x11_display.read_event_blocking(&mut event_buffer).into_event().into_simple_event();
+
+        println!("{:?}", &event);
+
+        match &event {
+            &SimpleEvent::ClientMessage(e) => {
+                if delete_window_handler.check_event(e) {
                     break;
                 }
             }
-
-            self.raw_window = Some(window);
-            Ok(())
+            _ => (),
         }
-    }
-}
-
-impl Drop for X11 {
-    fn drop(&mut self) {
-        unsafe {
-            if let Some(raw_window) = self.raw_window {
-                xlib::XDestroyWindow(self.raw_display, raw_window);
-            }
-
-            let result = xlib::XCloseDisplay(self.raw_display);
-
-            if result != 0 {
-                println!("x11 display close error");
-            }
-        }
-    }
-}
-
-fn x11(egl_handle: &EGLHandle) {
-    unsafe {
-        let x11 = X11::new().unwrap();
-
-        let display_builder = egl_handle.display_builder();
-
-        let display: Display<DefaultPlatform<RefCell<X11>>> = display_builder
-            .build_default_platform_display(x11.raw_display, RefCell::new(x11))
-            .expect("error");
-
-        print_display_info(&display);
-
-        let client_api_support = display.client_api_support().unwrap();
-
-        if !client_api_support.opengl && !client_api_support.opengl_es {
-            println!("OpenGL or OpenGL ES support is required");
-
-            return;
-        }
-
-        let (config_window, opengl_context_builder, visual_id) = {
-            use egl_wrapper::config::attribute::NativeRenderable;
-
-            let config = search_configs(&display).into_iter().next().unwrap();
-            let config_window = display.window_surface(&config).unwrap().unwrap();
-            let opengl_context_builder = display.opengl_context_builder(&config).unwrap().unwrap();
-
-            let visual_id = config.native_visual_id().unwrap().unwrap();
-            (config_window, opengl_context_builder, visual_id)
-        };
-
-        display
-            .display_handle()
-            .platform()
-            .optional_native_display()
-            .borrow_mut()
-            .create_window(visual_id as xlib::XID)
-            .unwrap();
-
-        let attributes = WindowSurfaceAttributeListBuilder::new().build();
-        let raw_native_window = display.display_handle().platform().optional_native_display().borrow().raw_window.unwrap();
-        let egl_window_surface = display
-            .display_handle()
-            .platform()
-            .get_platform_window_surface((), raw_native_window, config_window, attributes)
-            .unwrap();
-        let context = display
-            .build_opengl_context(opengl_context_builder)
-            .unwrap();
-
-        let mut current_context = context.make_current(egl_window_surface).unwrap();
-
-        {
-            let function_loader = current_context
-                .context()
-                .display()
-                .function_loader()
-                .unwrap();
-            gl::load_with(|s| function_loader.get_proc_address(s).unwrap());
-        }
-
-        gl::ClearColor(0.0, 0.5, 0.8, 0.0);
-        gl::Clear(gl::COLOR_BUFFER_BIT);
-
-        print_opengl_info();
-
-        current_context = current_context.swap_buffers().unwrap();
-
-        thread::sleep(Duration::from_secs(2));
     }
 }
 
@@ -275,7 +199,7 @@ fn print_display_info<P: Platform>(display: &Display<P>) {
     // Test searching configs
 
     {
-        let configs = search_configs(&display);
+        let configs = utils::search_configs(&display);
         println!("config search results count: {}", configs.count());
 
         for config in configs {

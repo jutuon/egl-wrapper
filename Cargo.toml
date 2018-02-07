@@ -25,7 +25,10 @@ features = [
 [dev-dependencies]
 gl = "0.10.0"
 winit = "0.9"
-x11 = "2.17"
+
+[dev-dependencies.x11-wrapper]
+git = "https://github.com/jutuon/x11-wrapper"
+rev = "8de5e37b7d8ace3b333cba31dae81f1b43e0992c"
 
 
 [features]
