@@ -55,7 +55,7 @@ impl<C: Context, D> SingleContext<C, D> {
             )
         };
 
-        if result == ffi::EGL_TRUE {
+        if result == ffi::TRUE {
             Ok(CurrentSurfaceAndContext {
                 surface,
                 context: self,
@@ -82,7 +82,7 @@ pub(crate) trait RawContextUtils: Context {
     fn bind_api(egl_handle: &EGLHandle) -> Result<(), Option<EGLError>> {
         let result = unsafe { egl_function!(egl_handle, BindAPI(Self::API_TYPE)) };
 
-        if result == ffi::EGL_TRUE {
+        if result == ffi::TRUE {
             Ok(())
         } else {
             Err(EGLError::check_errors(egl_handle))
@@ -113,7 +113,7 @@ impl<S: Surface, C: Context, D> CurrentSurfaceAndContext<S, C, D> {
             )
         };
 
-        if result == ffi::EGL_TRUE {
+        if result == ffi::TRUE {
             Ok(self)
         } else {
             let error = EGLError::check_errors(self.context.context().egl_handle());
@@ -142,7 +142,7 @@ impl<S: Surface, C: Context, D> CurrentSurfaceAndContext<S, C, D> {
             egl_function!(self.context.context().egl_handle(), SwapInterval(self.context.context().raw_display(), interval.value()))
         };
 
-        if result == ffi::EGL_TRUE {
+        if result == ffi::TRUE {
             Ok(())
         } else {
             Err(EGLError::check_errors(self.context.context().egl_handle()))
@@ -176,7 +176,7 @@ pub(self) fn destroy_context(
 ) {
     let result = unsafe { egl_function!(_egl_handle, DestroyContext(raw_display, raw_context)) };
 
-    if result == ffi::EGL_FALSE {
+    if result == ffi::FALSE {
         eprintln!("egl_wrapper: couldn't destroy context");
     }
 }

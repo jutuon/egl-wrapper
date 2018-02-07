@@ -38,7 +38,7 @@ pub trait ContextAttributeUtils: Context {
             )
         };
 
-        if result == ffi::EGL_TRUE {
+        if result == ffi::TRUE {
             Ok(value)
         } else {
             Err(QueryError::QueryError)
@@ -66,9 +66,9 @@ pub trait ContextAttributeUtils: Context {
     fn query_boolean(&self, attribute: QueryableAttribute) -> Result<bool, QueryError> {
         let value = self.query_attribute(attribute)?;
 
-        if value == ffi::EGL_TRUE as EGLint {
+        if value == ffi::TRUE as EGLint {
             Ok(true)
-        } else if value == ffi::EGL_FALSE as EGLint {
+        } else if value == ffi::FALSE as EGLint {
             Ok(false)
         } else {
             Err(QueryError::BooleanError)

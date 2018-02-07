@@ -151,13 +151,13 @@ impl<P: Platform> Drop for DisplayHandle<P> {
     fn drop(&mut self) {
         let result = unsafe { egl_function!(self.egl_handle(), Terminate(self.raw_display)) };
 
-        if result == ffi::EGL_FALSE {
+        if result == ffi::FALSE {
             eprintln!("egl_wrapper: eglTerminate returned false");
         }
 
         let result = unsafe { egl_function!(self.egl_handle(), ReleaseThread()) };
 
-        if result == ffi::EGL_FALSE {
+        if result == ffi::FALSE {
             eprintln!("egl_wrapper: eglReleaseThread returned false");
         }
     }
@@ -184,7 +184,7 @@ impl<P: Platform> Display<P> {
         let result =
             unsafe { egl_function!(platform.egl_handle(), Initialize(raw_display, &mut version_major, &mut version_minor)) };
 
-        if result == ffi::EGL_FALSE {
+        if result == ffi::FALSE {
             return Err(DisplayCreationError::EGLInitializationError);
         }
 
@@ -274,7 +274,7 @@ impl<P: Platform> Display<P> {
                 )
             );
 
-            if result == ffi::EGL_FALSE {
+            if result == ffi::FALSE {
                 return Err(());
             }
 
@@ -302,7 +302,7 @@ impl<P: Platform> Display<P> {
                 )
             );
 
-            if result == ffi::EGL_FALSE {
+            if result == ffi::FALSE {
                 return 0;
             }
         }
@@ -336,7 +336,7 @@ impl<P: Platform> Display<P> {
                 )
             );
 
-            if result == ffi::EGL_FALSE {
+            if result == ffi::FALSE {
                 return Err(());
             }
         }
@@ -363,7 +363,7 @@ impl<P: Platform> Display<P> {
                 )
             );
 
-            if result == ffi::EGL_FALSE {
+            if result == ffi::FALSE {
                 return Err(());
             }
         }
