@@ -23,7 +23,7 @@ features = [
 
 
 [dev-dependencies]
-gl = "0.7.0"
+gl = "0.10.0"
 winit = "0.9"
 x11 = "2.17"
 
