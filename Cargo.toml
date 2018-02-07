@@ -11,10 +11,10 @@ lazy_static = "1.0"
 
 [dependencies.egl-sys]
 git = "https://github.com/jutuon/egl-sys"
-rev = "7458c10576d1837b2a25dd2504f66ac728cb1e1c"
+rev = "c1a7c79f4fc3b5304044b93b80f2d7a600d4054d"
 features = [
-    "racer_autocomplete_workaround",
-    "extensions_module",
+    "racer-autocomplete-workaround",
+    "extensions-module",
     "EGL_KHR_create_context",
     "EGL_EXT_platform_base",
     "EGL_EXT_platform_x11",
@@ -29,4 +29,4 @@ x11 = "2.17"
 
 
 [features]
-runtime-linking = ["libloading", "egl-sys/function_pointer_loading"]
+runtime-linking = ["libloading", "egl-sys/function-pointer-loading"]
