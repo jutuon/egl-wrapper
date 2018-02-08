@@ -273,6 +273,15 @@ impl DisplayBuilder {
         }
     }
 
+    /// Build display with `EGL_DEFAULT_DISPLAY`.
+    pub fn build_default_platform_default_display<T>(
+        self,
+        optional_native_display_handle: T,
+    ) -> Result<Display<DefaultPlatform<T>>, (Self, DisplayCreationError)> {
+        DefaultPlatform::get_display(self.egl_handle.clone(), ffi::DEFAULT_DISPLAY, optional_native_display_handle)
+            .map_err(|e| (self, e))
+    }
+
     pub fn build_default_platform_display<T>(
         self,
         native_display: ffi::types::NativeDisplayType,
