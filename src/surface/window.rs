@@ -34,6 +34,14 @@ impl<T, P: Platform> WindowSurface<T, P> {
             _marker: PhantomData,
         }
     }
+
+    pub fn optional_native_window_handle(&self) -> &T {
+        &self.optional_native_window_handle
+    }
+
+    pub fn optional_native_window_handle_mut(&mut self) -> &mut T {
+        &mut self.optional_native_window_handle
+    }
 }
 
 impl<T, P: Platform> Surface for WindowSurface<T, P> {
