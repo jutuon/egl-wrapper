@@ -282,7 +282,7 @@ impl DisplayBuilder {
             .map_err(|e| (self, e))
     }
 
-    pub fn build_default_platform_display<T>(
+    pub unsafe fn build_default_platform_display<T>(
         self,
         native_display: ffi::types::NativeDisplayType,
         optional_native_display_handle: T,
