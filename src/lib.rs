@@ -78,7 +78,7 @@ pub(crate) struct EGLFunctions {
     pub(crate) extensions: extensions::Egl,
 }
 
-#[cfg(all(unix, feature = "runtime-linking"))]
+#[cfg(all(unix, feature = "runtime-linking", not(feature = "raspberry-pi-broadcom")))]
 const EGL_LIBRARY_NAME: &'static str = "libEGL.so.1";
 
 

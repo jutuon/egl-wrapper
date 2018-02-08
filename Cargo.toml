@@ -33,3 +33,5 @@ rev = "8de5e37b7d8ace3b333cba31dae81f1b43e0992c"
 
 [features]
 runtime-linking = ["libloading", "egl-sys/function-pointer-loading"]
+
+raspberry-pi-broadcom = ["egl-sys/raspberry-pi-broadcom"]
