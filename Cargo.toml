@@ -25,11 +25,15 @@ features = [
 [dev-dependencies]
 gl = "0.10.0"
 winit = "0.9"
+opengles = "0.1"
 
 [dev-dependencies.x11-wrapper]
 git = "https://github.com/jutuon/x11-wrapper"
 rev = "8de5e37b7d8ace3b333cba31dae81f1b43e0992c"
 
+[dev-dependencies.videocore-wrapper]
+git = "https://github.com/jutuon/videocore-wrapper"
+rev = "3729eaaaac849cf80a34520b2456cac594f2c546"
 
 [features]
 runtime-linking = ["libloading", "egl-sys/function-pointer-loading"]
