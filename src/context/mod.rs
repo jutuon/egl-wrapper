@@ -152,6 +152,18 @@ impl<S: Surface, C: Context, D> CurrentSurfaceAndContext<S, C, D> {
     pub fn context(&self) -> &SingleContext<C, D> {
         &self.context
     }
+
+
+    // TODO: Does EGL specifications say anything about modifying surface
+    // when it is current?
+
+    pub fn surface(&self) -> &S {
+        &self.surface
+    }
+
+    pub fn surface_mut(&mut self) -> &mut S {
+        &mut self.surface
+    }
 }
 
 impl<S: Surface, C: Context + attribute::ContextAttributeUtils, D>
